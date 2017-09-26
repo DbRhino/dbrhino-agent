@@ -153,3 +153,10 @@ class Postgresql(Database):
             revoke_everything(cur, catalog, username)
             cur.connection.commit()
             drop_user(cur, username)
+
+    @property
+    def dbtype(self):
+        with controlled_cursor(self.connect_to) as cur:
+            if is_redshift(cur):
+                return "redshift"
+            return "postgresql"

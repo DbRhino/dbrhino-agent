@@ -110,3 +110,7 @@ class MySQL(Database):
 
     def setup(self):
         pass
+
+    @property
+    def dbtype(self):
+        return "mysql"

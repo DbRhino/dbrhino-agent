@@ -23,7 +23,7 @@ class DbRhino(object):
         return resp
 
     def upsert_databases(self):
-        payload = [{"name": db.name, "type": db.type}
+        payload = [{"name": db.name, "dbtype": db.dbtype}
                    for db in self.config.databases.values()]
         self._request("PUT", "/api/databases", json=payload)
 

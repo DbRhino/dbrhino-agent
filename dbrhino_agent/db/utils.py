@@ -3,7 +3,6 @@ class Database(object):
         self.name = name
         self.connect_to = connect_to
         self.parsed_url = parsed_url
-        self.type = parsed_url.scheme
 
 
 class GrantPermission(object):
