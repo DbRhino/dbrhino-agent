@@ -1,12 +1,20 @@
+import re
 import logging
 from urllib.parse import urlparse
 import pymysql as mysql
 from pymysql.converters import escape_str
 import jinja2
-from .utils import Database
+from .utils import Database, scalar_result
 from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
+
+
+def get_version(cur):
+    cur.execute("select version()")
+    ver_string = scalar_result(cur)
+    match = re.match(r"([0-9.]+)-", ver_string)
+    return match.group(1) if match else None
 
 
 class MyUname(object):
@@ -117,9 +125,10 @@ class MySQL(Database):
                 return GrantResult.REVOKED
             return GrantResult.NO_CHANGE
 
-    def setup(self):
-        pass
-
-    @property
-    def dbtype(self):
+    # pylint: disable=no-self-use
+    def discover_dbtype(self):
         return "mysql"
+
+    def discover_dbversion(self):
+        with controlled_cursor(self.connect_to) as cur:
+            return get_version(cur)

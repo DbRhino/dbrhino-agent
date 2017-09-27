@@ -8,7 +8,7 @@ def _dsn(username, password="password"):
     return ("postgresql://{}:{}@localhost/dbrhino_agent_tests"
             .format(username, password))
 
-CONNECT_TO = _dsn(username="buck")
+MASTER_DSN = _dsn(username="buck")
 TEST_USER = "test_user123"
 TEST_PW = "PasW';drop table `foo`"
 TEST_DSN = _dsn(TEST_USER, TEST_PW)
@@ -16,7 +16,7 @@ TEST_DSN = _dsn(TEST_USER, TEST_PW)
 
 class Base(object):
     def setup_conn(self):
-        self.conn = pg.connect(CONNECT_TO)
+        self.conn = pg.connect(MASTER_DSN)
         self.cursor = self.conn.cursor()
 
     def teardown_conn(self):
@@ -117,3 +117,15 @@ class TestOps(Base):
         with pg.controlled_cursor(TEST_DSN) as cur:
             with pytest.raises(Exception):
                 cur.execute("select x from testschemaabc.abc")
+
+
+class TestDiscovery(Base):
+    def setup(self):
+        self.setup_conn()
+
+    def teardown(self):
+        self.teardown_conn()
+
+    def test_version_discovery(self):
+        with pg.controlled_cursor(MASTER_DSN) as cur:
+            assert pg.get_pg_version(cur)

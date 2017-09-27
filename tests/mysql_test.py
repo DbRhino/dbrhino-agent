@@ -8,7 +8,7 @@ def _dsn(username, password="password", schema="dbrhino_agent_tests"):
     return ("mysql://{}:{}@localhost/{}"
             .format(username, password, schema))
 
-CONNECT_TO = _dsn("root")
+MASTER_DSN = _dsn("root")
 HOST = "%"
 TEST_USER = my.MyUname("test_user123", HOST)
 TEST_PW = "PasW';drop table `foo`"
@@ -17,7 +17,7 @@ TEST_DSN = _dsn(TEST_USER.username, TEST_PW)
 
 class Base(object):
     def setup_conn(self):
-        self.conn = my.connect(CONNECT_TO)
+        self.conn = my.connect(MASTER_DSN)
         self.cursor = self.conn.cursor()
 
     def teardown_conn(self):
@@ -93,3 +93,15 @@ class TestGrant(Base):
         with pytest.raises(Exception):
             with my.controlled_cursor(dsn) as cur:
                 cur.execute("select * from testschemaabc.abc")
+
+
+class TestDiscovery(Base):
+    def setup(self):
+        self.setup_conn()
+
+    def teardown(self):
+        self.teardown_conn()
+
+    def test_version_discovery(self):
+        with my.controlled_cursor(MASTER_DSN) as cur:
+            assert my.get_version(cur)

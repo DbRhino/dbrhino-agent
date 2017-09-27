@@ -1,26 +1,31 @@
+import re
 import logging
 import psycopg2
 from psycopg2.extras import quote_ident
 import jinja2
 from .utils import Database, first_column, scalar_result
-import re
 from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
 
 
-def get_full_version(cur):
+def full_version_string(cur):
     cur.execute("select version()")
     return scalar_result(cur)
 
 
 def get_pg_version(cur):
-    match = re.search(r"PostgreSQL\s+([0-9.]+)")
-    get_full_version(cur)
+    match = re.search(r"PostgreSQL\s+([0-9.]+)", full_version_string(cur))
+    return match.group(1) if match else None
+
+
+def get_redshift_version(cur):
+    match = re.search(r"Redshift\s+([0-9.]+)", full_version_string(cur))
+    return match.group(1) if match else None
 
 
 def is_redshift(cur):
-    return "redshift" in get_full_version(cur).lower()
+    return "redshift" in full_version_string(cur).lower()
 
 
 def current_database(cur):
@@ -159,9 +164,14 @@ class Postgresql(Database):
             drop_user(cur, username)
             return GrantResult.REVOKED
 
-    @property
-    def dbtype(self):
+    def discover_dbtype(self):
         with controlled_cursor(self.connect_to) as cur:
             if is_redshift(cur):
                 return "redshift"
             return "postgresql"
+
+    def discover_dbversion(self):
+        with controlled_cursor(self.connect_to) as cur:
+            if is_redshift(cur):
+                return get_redshift_version(cur)
+            return get_pg_version(cur)
