@@ -144,7 +144,7 @@ class Postgresql(Database):
             catalog = Catalog.discover(cur)
             revoke_everything(cur, catalog, grant.username)
             apply_statements(cur, catalog, grant.username,
-                             grant.policy.statements)
+                             grant.statements)
 
     def drop_user(self, username):
         logger.info("dropping user %s from %s", username, self.name)

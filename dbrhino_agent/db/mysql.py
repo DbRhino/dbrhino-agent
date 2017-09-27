@@ -106,7 +106,7 @@ class MySQL(Database):
             elif not find_username(cur, my_uname):
                 raise NoPasswordException(my_uname)
             revoke_everything(cur, my_uname)
-            apply_statements(cur, my_uname, grant.policy.statements)
+            apply_statements(cur, my_uname, grant.statements)
 
     def setup(self):
         pass
