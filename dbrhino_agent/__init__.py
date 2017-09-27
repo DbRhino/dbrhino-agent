@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-import click
-from .click_utils import CONFIG, CONFIG_OPTS
-from .dbrhino import DbRhino
-from .grants import Grant
-from .db import NoPasswordException
+import json
 import logging
-from requests.exceptions import ConnectionError
 import time
+import click
+from . import config as config_
+from .dbrhino import DbRhino, Grant, GrantResult
 from .__version__ import __version__
 
 logging.basicConfig()
@@ -14,6 +12,17 @@ root_logger = logging.getLogger("")
 root_logger.level = logging.INFO
 logging.getLogger("dbrhino_agent").level = logging.DEBUG
 logger = logging.getLogger(__name__)
+
+
+class _ConfigType(click.ParamType):
+    name = "json_file"
+
+    def convert(self, value, param, ctx):
+        return config_.Config.from_file(value)
+
+_JSON_FILE = _ConfigType()
+CONFIG = ("--config", "-c")
+CONFIG_OPTS = dict(type=_JSON_FILE, required=True)
 
 
 @click.command("upsert-databases")
@@ -28,21 +37,20 @@ def _fetch_and_apply_grants(dbrhino):
     for grant_def in grant_defs:
         try:
             grant = Grant(**grant_def)
-            applied = {"id": grant.id, "version": grant.version}
         except:
             logger.exception("grant definition is malformed!!!")
             continue
         try:
             db = dbrhino.config.find_database(grant.database)
-            db.implement_grant(grant)
-            applied["result"] = "success"
-        except NoPasswordException as e:
-            applied["result"] = "no_user_password"
-            logger.info(e.args[0])
+            result = db.drop_user(grant.username) \
+                if grant.revoke else db.implement_grant(grant)
         except:
-            applied["result"] = "unknown_error"
             logger.exception("Unknown error implementing grant")
-        applied_grants.append(applied)
+            result = GrantResult.UNKNOWN_ERROR
+        if result != GrantResult.NO_CHANGE:
+            applied_grants.append({"id": grant.id,
+                                   "version": grant.version,
+                                   "result": result})
     dbrhino.checkin(applied_grants)
 
 

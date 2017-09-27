@@ -1,5 +1,4 @@
 from urllib.parse import urlparse
-from .utils import NoPasswordException
 
 
 def create(*, connect_to, **kwargs):
@@ -13,3 +12,5 @@ def create(*, connect_to, **kwargs):
     else:
         raise Exception("Unknown scheme: " + str(parsed.scheme))
     return cls(connect_to=connect_to, parsed_url=parsed, **kwargs)
+
+__all__ = ["create"]

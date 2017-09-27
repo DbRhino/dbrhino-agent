@@ -3,7 +3,8 @@ from urllib.parse import urlparse
 import pymysql as mysql
 from pymysql.converters import escape_str
 import jinja2
-from .utils import Database, NoPasswordException
+from .utils import Database
+from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +105,17 @@ class MySQL(Database):
             if grant.password:
                 apply_pw(cur, my_uname, grant.password)
             elif not find_username(cur, my_uname):
-                raise NoPasswordException(my_uname)
+                return GrantResult.NO_PASSWORD
             revoke_everything(cur, my_uname)
             apply_statements(cur, my_uname, grant.statements)
+            return GrantResult.APPLIED
+
+    def drop_user(self, username):
+        with controlled_cursor(self.parsed_url) as cur:
+            if find_username(cur, username):
+                drop_user(cur, username)
+                return GrantResult.REVOKED
+            return GrantResult.NO_CHANGE
 
     def setup(self):
         pass

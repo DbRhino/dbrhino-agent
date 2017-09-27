@@ -17,9 +17,3 @@ def first_column(cur):
 def scalar_result(cur):
     col = first_column(cur)
     return col[0] if col else None
-
-
-class NoPasswordException(Exception):
-    def __init__(self, username):
-        msg = "User {} has to set a password".format(username)
-        super().__init__(msg)

@@ -2,8 +2,9 @@ import logging
 import psycopg2
 from psycopg2.extras import quote_ident
 import jinja2
-from .utils import Database, NoPasswordException, first_column, scalar_result
+from .utils import Database, first_column, scalar_result
 import re
+from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
 
@@ -140,19 +141,23 @@ class Postgresql(Database):
             if grant.password:
                 apply_pw(cur, grant.username, grant.password)
             elif not find_username(cur, grant.username):
-                raise NoPasswordException(grant.username)
+                return GrantResult.NO_PASSWORD
             catalog = Catalog.discover(cur)
             revoke_everything(cur, catalog, grant.username)
             apply_statements(cur, catalog, grant.username,
                              grant.statements)
+            return GrantResult.APPLIED
 
     def drop_user(self, username):
         logger.info("dropping user %s from %s", username, self.name)
         with controlled_cursor(self.connect_to) as cur:
+            if not find_username(cur, username):
+                return GrantResult.NO_CHANGE
             catalog = Catalog.discover(cur)
             revoke_everything(cur, catalog, username)
             cur.connection.commit()
             drop_user(cur, username)
+            return GrantResult.REVOKED
 
     @property
     def dbtype(self):

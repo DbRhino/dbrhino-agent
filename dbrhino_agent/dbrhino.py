@@ -2,6 +2,26 @@ import requests
 from .__version__ import __version__
 
 
+class Grant(object):
+    def __init__(self, *, id, database, username, version, statements=[],
+                 password=None, revoke=False, **kwargs):
+        self.id = id
+        self.database = database
+        self.username = username
+        self.statements = statements
+        self.version = version
+        self.password = password
+        self.revoke = revoke
+
+
+class GrantResult(object):
+    NO_CHANGE = "no_change"
+    APPLIED = "applied"
+    NO_PASSWORD = "no_user_password"
+    UNKNOWN_ERROR = "unknown_error"
+    REVOKED = "revoked"
+
+
 class DbRhino(object):
     def __init__(self, config):
         self.config = config
