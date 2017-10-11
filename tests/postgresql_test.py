@@ -118,6 +118,24 @@ class TestOps(Base):
             with pytest.raises(Exception):
                 cur.execute("select x from testschemaabc.abc")
 
+    def test_granting_all_schemas(self):
+        stmts = ["""
+        {% for schema in all_schemas %}
+        GRANT USAGE ON SCHEMA {{schema}} TO {{username}};
+        GRANT SELECT ON ALL TABLES IN SCHEMA {{schema}} TO {{username}};
+        {% endfor %}
+         """]
+        pg.apply_statements(self.cursor, self.catalog, TEST_USER, stmts)
+        self.conn.commit()
+        with pg.controlled_cursor(TEST_DSN) as cur:
+            cur.execute("select * from testschemaabc.abc")
+            assert first_column(cur) == [1, 2]
+        pg.revoke_everything(self.cursor, self.catalog, TEST_USER)
+        self.conn.commit()
+        with pg.controlled_cursor(TEST_DSN) as cur:
+            with pytest.raises(Exception):
+                cur.execute("select * from testschemaabc.abc")
+
 
 class TestDiscovery(Base):
     def setup(self):

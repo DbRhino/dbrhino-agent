@@ -14,6 +14,7 @@ setup(
         "PyMySQL<1",
         "psycopg2>=2, <3",
         "jinja2",
+        "sqlparse",
     ],
     entry_points="""
         [console_scripts]

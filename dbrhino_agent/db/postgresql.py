@@ -2,8 +2,8 @@ import re
 import logging
 import psycopg2
 from psycopg2.extras import quote_ident
-import jinja2
-from .utils import Database, first_column, scalar_result
+from . import utils
+from .. import templates as tmpl
 from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def full_version_string(cur):
     cur.execute("select version()")
-    return scalar_result(cur)
+    return utils.scalar_result(cur)
 
 
 def get_pg_version(cur):
@@ -30,7 +30,7 @@ def is_redshift(cur):
 
 def current_database(cur):
     cur.execute("SELECT current_database()")
-    return scalar_result(cur)
+    return utils.scalar_result(cur)
 
 
 def discover_all_schemas(cur):
@@ -40,7 +40,7 @@ def discover_all_schemas(cur):
         WHERE schema_name NOT LIKE 'pg_%'
         AND schema_name != 'information_schema'
     """)
-    return first_column(cur)
+    return utils.first_column(cur)
 
 
 class Catalog(object):
@@ -61,7 +61,7 @@ def find_username(cur, username):
         "SELECT usename FROM pg_catalog.pg_user WHERE usename = %s",
         (username,)
     )
-    return scalar_result(cur)
+    return utils.scalar_result(cur)
 
 
 def create_user(cur, username, pw):
@@ -115,10 +115,14 @@ def revoke_everything(cur, catalog, username):
 
 def apply_statements(cur, catalog, username, statements):
     for stmt in statements:
-        templ = jinja2.Template(stmt)
-        sql = templ.render(database=quote_ident(catalog.database, cur),
-                           username=quote_ident(username, cur))
-        cur.execute(sql)
+        sqls = tmpl.render_and_split(
+            stmt,
+            all_schemas=catalog.schemas,
+            database=quote_ident(catalog.database, cur),
+            username=quote_ident(username, cur),
+        )
+        for sql in sqls:
+            cur.execute(sql)
 
 
 def connect(connect_to):
@@ -143,7 +147,7 @@ class controlled_cursor(object):
         self._conn.close()
 
 
-class Postgresql(Database):
+class Postgresql(utils.Database):
     def implement_grant(self, grant):
         logger.debug("implementing grant for %s in %s",
                      grant.username, self.name)
