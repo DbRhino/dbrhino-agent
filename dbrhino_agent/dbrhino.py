@@ -20,6 +20,7 @@ class GrantResult(object):
     NO_PASSWORD = "no_user_password"
     UNKNOWN_ERROR = "unknown_error"
     REVOKED = "revoked"
+    UNKNOWN_DATABASE = "unknown_database"
 
 
 class DbRhino(object):

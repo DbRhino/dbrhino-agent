@@ -6,6 +6,10 @@ import collections
 SERVER_URL = "https://app.dbrhino.com"
 
 
+class UnknownDbException(Exception):
+    pass
+
+
 class Config(object):
     def __init__(self, *, access_token, server_url=SERVER_URL, databases={},
                  **kwargs):
@@ -22,6 +26,8 @@ class Config(object):
             return cls(**json.loads(f.read()))
 
     def find_database(self, name):
+        if name not in self.databases:
+            raise UnknownDbException(name)
         return self.databases[name]
 
     def remote_url(self, path):

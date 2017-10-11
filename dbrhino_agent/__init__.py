@@ -44,6 +44,8 @@ def _fetch_and_apply_grants(dbrhino):
             db = dbrhino.config.find_database(grant.database)
             result = db.drop_user(grant.username) \
                 if grant.revoke else db.implement_grant(grant)
+        except config_.UnknownDbException:
+            result = GrantResult.UNKNOWN_DATABASE
         except:
             logger.exception("Unknown error implementing grant")
             result = GrantResult.UNKNOWN_ERROR
