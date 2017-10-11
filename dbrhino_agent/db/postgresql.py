@@ -76,13 +76,18 @@ def create_user(cur, username, pw):
 
 
 def drop_user(cur, username):
-    cur.execute("DROP ROLE {}".format(quote_ident(username, cur)))
+    cur.execute("DROP USER {}".format(quote_ident(username, cur)))
 
 
 def update_pw(cur, username, pw):
-    cur.execute("ALTER ROLE {} WITH ENCRYPTED PASSWORD %s"
-                .format(quote_ident(username, cur)),
-                (pw,))
+    if is_redshift(cur):
+        cur.execute("ALTER USER {} PASSWORD %s"
+                    .format(quote_ident(username, cur)),
+                    (pw,))
+    else:
+        cur.execute("ALTER USER {} WITH ENCRYPTED PASSWORD %s"
+                    .format(quote_ident(username, cur)),
+                    (pw,))
 
 
 def apply_pw(cur, username, pw):
