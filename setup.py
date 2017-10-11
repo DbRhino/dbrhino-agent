@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup
-from dbrhino_agent import __version__
 
 setup(
     name="dbrhino-agent",
-    version=__version__,
+    version="0.2.0",
     description="Agent for dbrhino",
     author="Buck Ryan",
     url="https://dbrhino.com",

@@ -1,5 +1,5 @@
 import requests
-from .__version__ import __version__
+from ._version import __version__
 
 
 class Grant(object):
