@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
+import sys
 import json
 import logging
 import time
 import click
+from daemonize import Daemonize
 from . import config as config_
 from .dbrhino import DbRhino, Grant, GrantResult
 from .version import __version__
 
-logging.basicConfig()
-root_logger = logging.getLogger("")
-root_logger.level = logging.INFO
-logging.getLogger("dbrhino_agent").level = logging.DEBUG
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+fmt = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s:%(lineno)d] %(message)s")
 
 
 class _ConfigType(click.ParamType):
     name = "json_file"
-
     def convert(self, value, param, ctx):
-        return config_.Config.from_file(value)
+        config = config_.Config.from_file(value)
+        if config.debug:
+            logger.setLevel(logging.DEBUG)
+            sh = logging.StreamHandler(sys.stdout)
+            sh.setFormatter(fmt)
+            logger.addHandler(sh)
+        return config
 
 _JSON_FILE = _ConfigType()
 CONFIG = ("--config", "-c")
@@ -76,11 +81,20 @@ def run(config):
 @click.command()
 @click.option(*CONFIG, **CONFIG_OPTS)
 @click.option("--interval-secs", type=click.INT, default=30)
-def server(config, interval_secs):
-    dbrhino = DbRhino(config)
-    while True:
-        _run_once(dbrhino)
-        time.sleep(interval_secs)
+@click.option("--pidfile", required=True)
+@click.option("--logfile", required=True)
+def server(config, interval_secs, pidfile, logfile):
+    fh = logging.FileHandler(logfile, "a")
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+    def run_server():
+        dbrhino = DbRhino(config)
+        while True:
+            _run_once(dbrhino)
+            time.sleep(interval_secs)
+    daemon = Daemonize(app="dbrhino_agent", pid=pidfile, action=run_server,
+                       logger=logger, keep_fds=[fh.stream.fileno()])
+    daemon.start()
 
 
 @click.command("drop-user")

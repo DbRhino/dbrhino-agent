@@ -15,6 +15,7 @@ setup(
         "psycopg2>=2, <3",
         "jinja2",
         "sqlparse",
+        "daemonize",
     ],
     entry_points="""
         [console_scripts]

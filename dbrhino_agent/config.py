@@ -12,9 +12,10 @@ class UnknownDbException(Exception):
 
 class Config(object):
     def __init__(self, *, access_token, server_url=SERVER_URL, databases={},
-                 **kwargs):
+                 debug=False, **kwargs):
         self.access_token = access_token
         self.server_url = server_url
+        self.debug = debug
         self.databases = {
             name: db.create(name=name, **conf)
             for name, conf in databases.items()

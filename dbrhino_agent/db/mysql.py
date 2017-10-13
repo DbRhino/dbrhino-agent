@@ -97,8 +97,8 @@ HOST = "%"  # Will eventually have to make this configurable
 
 class MySQL(common.Database):
     def implement_grant(self, grant):
-        logger.debug("implementing grant for %s in %s",
-                     grant.username, self.name)
+        logger.info("implementing grant for %s in %s",
+                    grant.username, self.name)
         with controlled_cursor(self.dbconf) as cur:
             my_uname = MyUname(grant.username, HOST)
             if grant.password:
@@ -112,6 +112,7 @@ class MySQL(common.Database):
     def drop_user(self, username):
         with controlled_cursor(self.dbconf) as cur:
             if find_username(cur, username):
+                logger.info("dropping user %s from %s", username, self.name)
                 drop_user(cur, username)
                 return GrantResult.REVOKED
             return GrantResult.NO_CHANGE
