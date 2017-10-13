@@ -2,7 +2,7 @@ import re
 import logging
 import psycopg2
 from psycopg2.extras import quote_ident
-from . import utils
+from . import common
 from .. import templates as tmpl
 from ..dbrhino import GrantResult
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def full_version_string(cur):
     cur.execute("select version()")
-    return utils.scalar_result(cur)
+    return common.scalar_result(cur)
 
 
 def get_pg_version(cur):
@@ -30,7 +30,7 @@ def is_redshift(cur):
 
 def current_database(cur):
     cur.execute("SELECT current_database()")
-    return utils.scalar_result(cur)
+    return common.scalar_result(cur)
 
 
 def discover_all_schemas(cur):
@@ -40,7 +40,7 @@ def discover_all_schemas(cur):
         WHERE schema_name NOT LIKE 'pg_%'
         AND schema_name != 'information_schema'
     """)
-    return utils.first_column(cur)
+    return common.first_column(cur)
 
 
 class Catalog(object):
@@ -61,7 +61,7 @@ def find_username(cur, username):
         "SELECT usename FROM pg_catalog.pg_user WHERE usename = %s",
         (username,)
     )
-    return utils.scalar_result(cur)
+    return common.scalar_result(cur)
 
 
 def create_user(cur, username, pw):
@@ -147,7 +147,7 @@ class controlled_cursor(object):
         self._conn.close()
 
 
-class Postgresql(utils.Database):
+class Postgresql(common.Database):
     def implement_grant(self, grant):
         logger.debug("implementing grant for %s in %s",
                      grant.username, self.name)

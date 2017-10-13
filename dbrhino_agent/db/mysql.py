@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import pymysql as mysql
 from pymysql.converters import escape_str
 import jinja2
-from .utils import Database, scalar_result
+from . import common
 from ..dbrhino import GrantResult
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def get_version(cur):
     cur.execute("select version()")
-    ver_string = scalar_result(cur)
+    ver_string = common.scalar_result(cur)
     match = re.match(r"([0-9.]+)-", ver_string)
     return match.group(1) if match else None
 
@@ -104,7 +104,7 @@ class controlled_cursor(object):
 
 HOST = "%"  # Will eventually have to make this configurable
 
-class MySQL(Database):
+class MySQL(common.Database):
     def implement_grant(self, grant):
         logger.debug("implementing grant for %s in %s",
                      grant.username, self.name)
