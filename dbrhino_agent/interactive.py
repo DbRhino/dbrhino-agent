@@ -65,6 +65,19 @@ PORT_DEFAULTS = {
     "postgresql": 5432,
     "redshift": 5439,
 }
+SUPERUSER_COMMANDS = {
+    "mysql": [
+        "-- Change `%` below if you don't want the user to connect from any IP address.",
+        "CREATE USER 'dbrhino_master'@`%` IDENTIFIED BY 'create-a-password';",
+        "GRANT ALL ON `%`.* TO 'dbrhino_master'@`%` WITH GRANT OPTION;",
+    ],
+    "postgresql": [
+        "CREATE USER dbrhino_master WITH SUPERUSER ENCRYPTED PASSWORD 'create-a-password';",
+    ],
+    "redshift": [
+        "CREATE USER dbrhino_master WITH CREATEUSER PASSWORD 'create-a-password';",
+    ],
+}
 
 
 def _get_a_name(conf_json):
@@ -80,35 +93,31 @@ def _get_a_name(conf_json):
     raise InteractiveException()
 
 
-def add_database(config_file):
-    if not os.path.exists(config_file):
-        print("The config file does not exist")
-        return FAILURE
-    with open(config_file) as f:
-        conf_json = json.load(fp=f, object_pairs_hook=OrderedDict)
-    print("It is recommended you backup {} before proceeding.".format(config_file))
-    input("Press enter if you wish to continue.")
-    try:
-        name = _get_a_name(conf_json)
-        dbtype = _ask_until_matches("Database type (postgresql, redshift, or mysql): ",
-                                    r"^(postgresql|redshift|mysql)$",
-                                    "Must be one of: postgresql, redshift, mysql")
-        host = _ask_until_matches("Host: ", *_NONEMPTY)
-        port_prompt = "Port (default {}): ".format(PORT_DEFAULTS[dbtype])
-        port = _ask_until_matches(port_prompt, r"^[0-9]*$", "Must be numeric")
-        db_required = (dbtype != "mysql")
-        db_prompt = "Database{}: ".format("" if db_required else " (optional)")
-        db_args = (_NONEMPTY if db_required else _WHATEVER)
-        database = _ask_until_matches(db_prompt, *db_args)
-        print("\nNow you will be asked to enter credentials for the master user.")
-        print("This user must be able to create other users and manage their grants.")
-        print("The password for this user will NEVER be sent to DbRhino.")
-        user = _ask_until_matches("User: ", *_NONEMPTY)
-        password = getpass.getpass()
-    except InteractiveException as e:
-        print("Unable to get this going.. Please contact "
-              "support@dbrhino.com for assistance.")
-        return FAILURE
+def _preamble(dbtype):
+    print("""
+Below you will be asked to enter credentials for the master user.
+This user must be able to create other users and manage their grants.
+The password for this user will NEVER be sent to DbRhino.
+
+To create this user, you must run the below commands. You can change the
+username if you'd like and you should be sure to make your own password.
+""")
+    for c in SUPERUSER_COMMANDS[dbtype]:
+        print("  " + c)
+    print()
+    input("Press enter when you are ready to continue.")
+
+
+def _build_dbconf():
+    host = _ask_until_matches("Host: ", *_NONEMPTY)
+    port_prompt = "Port (default {}): ".format(PORT_DEFAULTS[dbtype])
+    port = _ask_until_matches(port_prompt, r"^[0-9]*$", "Must be numeric")
+    db_required = (dbtype != "mysql")
+    db_prompt = "Database{}: ".format("" if db_required else " (optional)")
+    db_args = (_NONEMPTY if db_required else _WHATEVER)
+    database = _ask_until_matches(db_prompt, *db_args)
+    user = _ask_until_matches("User: ", *_NONEMPTY)
+    password = getpass.getpass()
     dbconf = {
         "type": dbtype,
         "host": host,
@@ -118,6 +127,28 @@ def add_database(config_file):
     }
     if database:
         dbconf["database"] = database
+    return dbconf
+
+
+def add_database(config_file):
+    if not os.path.exists(config_file):
+        print("The config file does not exist")
+        return FAILURE
+    with open(config_file) as f:
+        conf_json = json.load(fp=f, object_pairs_hook=OrderedDict)
+    try:
+        dbtype = _ask_until_matches(
+            "Database type (postgresql, redshift, or mysql): ",
+            r"^(postgresql|redshift|mysql)$",
+            "Must be one of: postgresql, redshift, mysql",
+        )
+        _preamble(dbtype)
+        name = _get_a_name(conf_json)
+        dbconf = _build_dbconf()
+    except InteractiveException as e:
+        print("Unable to get this going.. Please contact "
+              "support@dbrhino.com for assistance.")
+        return FAILURE
     if "databases" not in conf_json:
         conf_json["databases"] = {}
     conf_json["databases"][name] = dbconf
