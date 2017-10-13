@@ -1,3 +1,4 @@
+import os
 import requests
 from .version import __version__
 
@@ -28,6 +29,9 @@ class DbRhino(object):
     def __init__(self, config):
         self.config = config
 
+    def remote_url(self, path):
+        return os.path.join(self.config.server_url, path.lstrip("/"))
+
     def _build_headers(self, headers):
         heads_ = {
             "Content-Type": "application/json",
@@ -40,7 +44,7 @@ class DbRhino(object):
 
     def _request(self, method, path, headers=None, params=None, **kwargs):
         headers_ = self._build_headers(headers)
-        resp = requests.request(method, self.config.remote_url(path),
+        resp = requests.request(method, self.remote_url(path),
                                 headers=headers_, params=params, **kwargs)
         resp.raise_for_status()
         return resp

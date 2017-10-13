@@ -1,4 +1,3 @@
-import os
 import json
 import collections
 from . import db
@@ -30,6 +29,3 @@ class Config(object):
         if name not in self.databases:
             raise UnknownDbException(name)
         return self.databases[name]
-
-    def remote_url(self, path):
-        return os.path.join(self.server_url, path.lstrip("/"))

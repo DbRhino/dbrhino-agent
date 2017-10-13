@@ -20,17 +20,19 @@ FAILURE = 1
 def configure(config_file):
     print(BANNER)
     print()
-    if not os.path.exists(config_file):
+    conf_json = {}
+    if os.path.exists(config_file):
+        with open(config_file) as f:
+            conf_json = json.load(fp=f, object_pairs_hook=OrderedDict)
+    if not conf_json.get("access_token"):
         print("You should have received a token for your agent "
               "when you registered with DbRhino.")
-        token = input("Enter your token here: ")
-        config = {
-            "access_token": token,
-        }
+        token = input("Enter your token here: ").strip()
+        conf_json["access_token"] = token
         with open(config_file, "w") as f:
-            json.dump(config, fp=f, indent=2)
+            json.dump(conf_json, fp=f, indent=2)
             f.write("\n")
-    config = config_.Config.from_file(config_file)
+    config = config_.Config(**conf_json)
     dbrhino = DbRhino(config)
     try:
         dbrhino.checkin()
@@ -94,21 +96,22 @@ def _get_a_name(conf_json):
 
 
 def _preamble(dbtype):
+    cmds = SUPERUSER_COMMANDS[dbtype]
     print("""
 Below you will be asked to enter credentials for the master user.
 This user must be able to create other users and manage their grants.
 The password for this user will NEVER be sent to DbRhino.
 
-To create this user, you must run the below commands. You can change the
-username if you'd like and you should be sure to make your own password.
-""")
+To create this user, you must run the below command{}. You can change the
+username if you'd like and you should choose your own password.
+""".format("s" if len(cmds) > 1 else ""))
     for c in SUPERUSER_COMMANDS[dbtype]:
         print("  " + c)
     print()
     input("Press enter when you are ready to continue.")
 
 
-def _build_dbconf():
+def _build_dbconf(dbtype):
     host = _ask_until_matches("Host: ", *_NONEMPTY)
     port_prompt = "Port (default {}): ".format(PORT_DEFAULTS[dbtype])
     port = _ask_until_matches(port_prompt, r"^[0-9]*$", "Must be numeric")
@@ -144,7 +147,7 @@ def add_database(config_file):
         )
         _preamble(dbtype)
         name = _get_a_name(conf_json)
-        dbconf = _build_dbconf()
+        dbconf = _build_dbconf(dbtype)
     except InteractiveException as e:
         print("Unable to get this going.. Please contact "
               "support@dbrhino.com for assistance.")
@@ -156,7 +159,8 @@ def add_database(config_file):
         json.dump(conf_json, fp=f, indent=2)
         f.write("\n")
     print("Your new configuration has been saved.")
-    input("We will now register this database in DbRhino. Press enter to proceed.")
+    input("We will now test connection to this database and register it"
+          " in DbRhino. Press enter to proceed.")
     config = config_.Config(**conf_json)
     dbrhino = DbRhino(config)
     dbrhino.upsert_databases(only=name)
