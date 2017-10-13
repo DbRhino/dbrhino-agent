@@ -1,23 +1,27 @@
 # pylint: disable=attribute-defined-outside-init
 from dbrhino_agent.db import mysql as my
-from dbrhino_agent.db.utils import first_column
+from dbrhino_agent.db.common import first_column
 import pytest
 
 
-def _dsn(username, password="password", schema="dbrhino_agent_tests"):
-    return ("mysql://{}:{}@localhost/{}"
-            .format(username, password, schema))
+def _conf(username, password="password", schema="dbrhino_agent_tests"):
+    return {
+        "host": "localhost",
+        "user": username,
+        "password": password,
+        "database": schema,
+    }
 
-MASTER_DSN = _dsn("root")
+MASTER_CONF = _conf("root")
 HOST = "%"
 TEST_USER = my.MyUname("test_user123", HOST)
 TEST_PW = "PasW';drop table `foo`"
-TEST_DSN = _dsn(TEST_USER.username, TEST_PW)
+TEST_CONF = _conf(TEST_USER.username, TEST_PW)
 
 
 class Base(object):
     def setup_conn(self):
-        self.conn = my.connect(MASTER_DSN)
+        self.conn = my.connect(MASTER_CONF)
         self.cursor = self.conn.cursor()
 
     def teardown_conn(self):
@@ -47,7 +51,7 @@ class TestUsers(Base):
         my.create_user(self.cursor, TEST_USER, TEST_PW)
         self._grant_all()
         self.conn.commit()
-        with my.controlled_cursor(TEST_DSN) as cur:
+        with my.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select 1")
             assert first_column(cur) == [1]
 
@@ -56,7 +60,7 @@ class TestUsers(Base):
         my.update_pw(self.cursor, TEST_USER, TEST_PW)
         self._grant_all()
         self.conn.commit()
-        with my.controlled_cursor(TEST_DSN) as cur:
+        with my.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select 1")
             assert first_column(cur) == [1]
 
@@ -84,7 +88,7 @@ class TestGrant(Base):
         ]
         my.apply_statements(self.cursor, TEST_USER, stmts)
         self.conn.commit()
-        dsn = _dsn(TEST_USER.username, TEST_PW, "testschemaabc")
+        dsn = _conf(TEST_USER.username, TEST_PW, "testschemaabc")
         with my.controlled_cursor(dsn) as cur:
             cur.execute("select * from testschemaabc.abc")
             assert first_column(cur) == [1, 2]
@@ -103,5 +107,5 @@ class TestDiscovery(Base):
         self.teardown_conn()
 
     def test_version_discovery(self):
-        with my.controlled_cursor(MASTER_DSN) as cur:
+        with my.controlled_cursor(MASTER_CONF) as cur:
             assert my.get_version(cur)

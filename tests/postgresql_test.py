@@ -1,22 +1,27 @@
 # pylint: disable=attribute-defined-outside-init
 from dbrhino_agent.db import postgresql as pg
-from dbrhino_agent.db.utils import first_column
+from dbrhino_agent.db.common import first_column
 import pytest
 
 
-def _dsn(username, password="password"):
-    return ("postgresql://{}:{}@localhost/dbrhino_agent_tests"
-            .format(username, password))
+def _conf(username, password="password"):
+    return {
+        "type": "postgresql",
+        "host": "localhost",
+        "user": username,
+        "password": password,
+        "database": "dbrhino_agent_tests",
+    }
 
-MASTER_DSN = _dsn(username="buck")
+MASTER_CONF = _conf(username="buck")
 TEST_USER = "test_user123"
 TEST_PW = "PasW';drop table `foo`"
-TEST_DSN = _dsn(TEST_USER, TEST_PW)
+TEST_CONF = _conf(TEST_USER, TEST_PW)
 
 
 class Base(object):
     def setup_conn(self):
-        self.conn = pg.connect(MASTER_DSN)
+        self.conn = pg.connect(MASTER_CONF)
         self.cursor = self.conn.cursor()
 
     def teardown_conn(self):
@@ -41,7 +46,7 @@ class TestUsers(Base):
     def test_create(self):
         pg.create_user(self.cursor, TEST_USER, TEST_PW)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select 1")
             assert first_column(cur) == [1]
 
@@ -49,7 +54,7 @@ class TestUsers(Base):
         pg.create_user(self.cursor, TEST_USER, "foobartmp")
         pg.update_pw(self.cursor, TEST_USER, TEST_PW)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select 1")
             assert first_column(cur) == [1]
 
@@ -79,12 +84,12 @@ class TestOps(Base):
         ]
         pg.apply_statements(self.cursor, self.catalog, TEST_USER, stmts)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select * from testschemaabc.abc")
             assert first_column(cur) == [1, 2]
         pg.revoke_everything(self.cursor, self.catalog, TEST_USER)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             with pytest.raises(Exception):
                 cur.execute("select * from testschemaabc.abc")
 
@@ -94,7 +99,7 @@ class TestOps(Base):
         ]
         pg.apply_statements(self.cursor, self.catalog, TEST_USER, stmts)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select 1")
             assert first_column(cur) == [1]
         pg.revoke_everything(self.cursor, self.catalog, TEST_USER)
@@ -107,14 +112,14 @@ class TestOps(Base):
         ]
         pg.apply_statements(self.cursor, self.catalog, TEST_USER, stmts)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select x from testschemaabc.abc")
             assert first_column(cur) == [1, 2]
             with pytest.raises(Exception):
                 cur.execute("select y from testschemaabc.abc")
         pg.revoke_everything(self.cursor, self.catalog, TEST_USER)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             with pytest.raises(Exception):
                 cur.execute("select x from testschemaabc.abc")
 
@@ -127,12 +132,12 @@ class TestOps(Base):
          """]
         pg.apply_statements(self.cursor, self.catalog, TEST_USER, stmts)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             cur.execute("select * from testschemaabc.abc")
             assert first_column(cur) == [1, 2]
         pg.revoke_everything(self.cursor, self.catalog, TEST_USER)
         self.conn.commit()
-        with pg.controlled_cursor(TEST_DSN) as cur:
+        with pg.controlled_cursor(TEST_CONF) as cur:
             with pytest.raises(Exception):
                 cur.execute("select * from testschemaabc.abc")
 
@@ -145,5 +150,5 @@ class TestDiscovery(Base):
         self.teardown_conn()
 
     def test_version_discovery(self):
-        with pg.controlled_cursor(MASTER_DSN) as cur:
+        with pg.controlled_cursor(MASTER_CONF) as cur:
             assert pg.get_pg_version(cur)

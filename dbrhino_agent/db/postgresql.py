@@ -125,18 +125,26 @@ def apply_statements(cur, catalog, username, statements):
             cur.execute(sql)
 
 
-def connect(connect_to):
-    return psycopg2.connect(connect_to)
+def connect(dbconf):
+    dbconf = dbconf.copy()
+    if "port" not in dbconf:
+        if dbconf["type"] == "redshift":
+            dbconf["port"] = 5439
+        else:
+            dbconf["port"] = 5432
+    dsn = ("postgresql://{user}:{password}@{host}:{port}/{database}"
+           .format(**dbconf))
+    return psycopg2.connect(dsn)
 
 
 class controlled_cursor(object):
-    def __init__(self, connect_to):
-        self.connect_to = connect_to
+    def __init__(self, dbconf):
+        self.dbconf = dbconf
         self._conn = None
         self._cursor = None
 
     def __enter__(self):
-        self._conn = connect(self.connect_to)
+        self._conn = connect(self.dbconf)
         self._cursor = self._conn.cursor()
         return self._cursor
 
@@ -151,7 +159,7 @@ class Postgresql(common.Database):
     def implement_grant(self, grant):
         logger.debug("implementing grant for %s in %s",
                      grant.username, self.name)
-        with controlled_cursor(self.connect_to) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             if grant.password:
                 apply_pw(cur, grant.username, grant.password)
             elif not find_username(cur, grant.username):
@@ -164,7 +172,7 @@ class Postgresql(common.Database):
 
     def drop_user(self, username):
         logger.info("dropping user %s from %s", username, self.name)
-        with controlled_cursor(self.connect_to) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             if not find_username(cur, username):
                 return GrantResult.NO_CHANGE
             catalog = Catalog.discover(cur)
@@ -173,14 +181,8 @@ class Postgresql(common.Database):
             drop_user(cur, username)
             return GrantResult.REVOKED
 
-    def discover_dbtype(self):
-        with controlled_cursor(self.connect_to) as cur:
-            if is_redshift(cur):
-                return "redshift"
-            return "postgresql"
-
     def discover_dbversion(self):
-        with controlled_cursor(self.connect_to) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             if is_redshift(cur):
                 return get_redshift_version(cur)
             return get_pg_version(cur)

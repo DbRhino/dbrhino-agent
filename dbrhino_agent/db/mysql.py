@@ -68,30 +68,21 @@ def revoke_everything(cur, my_uname):
                 .format(my_uname))
 
 
-def connect(connect_opt):
-    parsed_url = urlparse(connect_opt) \
-        if isinstance(connect_opt, str) else connect_opt
-    kw = {}
-    for opt, attr in (("host", "hostname"),
-                      ("port", "port"),
-                      ("user", "username"),
-                      ("passwd", "password")):
-        val = getattr(parsed_url, attr)
-        if val:
-            kw[opt] = val
-    if parsed_url.path:
-        kw["db"] = parsed_url.path[1:]
-    return mysql.connect(**kw)
+def connect(dbconf):
+    driver_conf = dbconf.copy()
+    driver_conf["passwd"] = driver_conf["password"]
+    driver_conf.pop("password")
+    return mysql.connect(**driver_conf)
 
 
 class controlled_cursor(object):
-    def __init__(self, connect_opt):
-        self.connect_opt = connect_opt
+    def __init__(self, dbconf):
+        self.dbconf = dbconf
         self._conn = None
         self._cursor = None
 
     def __enter__(self):
-        self._conn = connect(self.connect_opt)
+        self._conn = connect(self.dbconf)
         self._cursor = self._conn.cursor()
         return self._cursor
 
@@ -108,7 +99,7 @@ class MySQL(common.Database):
     def implement_grant(self, grant):
         logger.debug("implementing grant for %s in %s",
                      grant.username, self.name)
-        with controlled_cursor(self.parsed_url) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             my_uname = MyUname(grant.username, HOST)
             if grant.password:
                 apply_pw(cur, my_uname, grant.password)
@@ -119,16 +110,12 @@ class MySQL(common.Database):
             return GrantResult.APPLIED
 
     def drop_user(self, username):
-        with controlled_cursor(self.parsed_url) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             if find_username(cur, username):
                 drop_user(cur, username)
                 return GrantResult.REVOKED
             return GrantResult.NO_CHANGE
 
-    # pylint: disable=no-self-use
-    def discover_dbtype(self):
-        return "mysql"
-
     def discover_dbversion(self):
-        with controlled_cursor(self.connect_to) as cur:
+        with controlled_cursor(self.dbconf) as cur:
             return get_version(cur)
