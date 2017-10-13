@@ -5,7 +5,7 @@ import time
 import click
 from . import config as config_
 from .dbrhino import DbRhino, Grant, GrantResult
-from ._version import __version__
+from .version import __version__
 
 logging.basicConfig()
 root_logger = logging.getLogger("")
