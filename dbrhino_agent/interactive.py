@@ -70,8 +70,8 @@ PORT_DEFAULTS = {
 SUPERUSER_COMMANDS = {
     "mysql": [
         "-- Change `%` below if you don't want the user to connect from any IP address.",
-        "CREATE USER 'dbrhino_master'@`%` IDENTIFIED BY 'create-a-password';",
-        "GRANT ALL ON `%`.* TO 'dbrhino_master'@`%` WITH GRANT OPTION;",
+        "CREATE USER 'dbrhino_master'@'%' IDENTIFIED BY 'create-a-password';",
+        "GRANT ALL ON *.* TO 'dbrhino_master'@'%' WITH GRANT OPTION;",
     ],
     "postgresql": [
         "CREATE USER dbrhino_master WITH SUPERUSER ENCRYPTED PASSWORD 'create-a-password';",

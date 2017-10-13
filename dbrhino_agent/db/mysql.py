@@ -1,11 +1,10 @@
 import re
 import logging
-from urllib.parse import urlparse
 import pymysql as mysql
 from pymysql.converters import escape_str
-import jinja2
 from . import common
 from ..dbrhino import GrantResult
+from .. import templates as tmpl
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +57,12 @@ def apply_pw(cur, my_uname, pw):
 
 def apply_statements(cur, my_uname, statements):
     for stmt in statements:
-        templ = jinja2.Template(stmt)
-        sql = templ.render(username=str(my_uname))
-        cur.execute(sql)
+        sqls = tmpl.render_and_split(
+            stmt,
+            username=str(my_uname),
+        )
+        for sql in sqls:
+            cur.execute(sql)
 
 
 def revoke_everything(cur, my_uname):
@@ -69,9 +71,8 @@ def revoke_everything(cur, my_uname):
 
 
 def connect(dbconf):
-    driver_keys = ["host", "port", "database", "user"]
+    driver_keys = ["host", "port", "database", "user", "password"]
     driver_conf = {k: dbconf[k] for k in driver_keys if k in dbconf}
-    driver_conf["passwd"] = dbconf["password"]
     return mysql.connect(**driver_conf)
 
 
