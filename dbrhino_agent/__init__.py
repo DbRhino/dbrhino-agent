@@ -14,25 +14,29 @@ logger.setLevel(logging.INFO)
 fmt = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s:%(lineno)d] %(message)s")
 
 
+def _handle_config(config):
+    if config.debug:
+        logger.setLevel(logging.DEBUG)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(fmt)
+        logger.addHandler(sh)
+    return config
+
+
 class _ConfigType(click.ParamType):
     name = "json_file"
     def convert(self, value, param, ctx):
-        config = config_.Config.from_file(value)
-        if config.debug:
-            logger.setLevel(logging.DEBUG)
-            sh = logging.StreamHandler(sys.stdout)
-            sh.setFormatter(fmt)
-            logger.addHandler(sh)
-        return config
+        return config_.Config.from_file(value)
 
-_JSON_FILE = _ConfigType()
+CONFIG_FILE = _ConfigType()
 CONFIG = ("--config", "-c")
-CONFIG_OPTS = dict(type=_JSON_FILE, required=True)
+CONFIG_OPTS = dict(type=CONFIG_FILE, required=True)
 
 
 @click.command("upsert-databases")
 @click.option(*CONFIG, **CONFIG_OPTS)
 def upsert_databases(config):
+    _handle_config(config)
     DbRhino(config).upsert_databases()
 
 
@@ -75,6 +79,7 @@ def _run_once(dbrhino):
 @click.command()
 @click.option(*CONFIG, **CONFIG_OPTS)
 def run(config):
+    _handle_config(config)
     _run_once(DbRhino(config))
 
 
@@ -84,6 +89,7 @@ def run(config):
 @click.option("--pidfile", required=True)
 @click.option("--logfile", required=True)
 def server(config, interval_secs, pidfile, logfile):
+    _handle_config(config)
     fh = logging.FileHandler(logfile, "a")
     fh.setFormatter(fmt)
     logger.addHandler(fh)
@@ -102,20 +108,22 @@ def server(config, interval_secs, pidfile, logfile):
 @click.option("--database", required=True)
 @click.option("--username", required=True)
 def drop_user(config, database, username):
+    _handle_config(config)
     config.find_database(database).drop_user(username)
 
 
-@click.command()
-def version():
-    print(__version__)
-
-
-@click.group()
-def cli():
-    pass
+@click.group(invoke_without_command=True)
+@click.pass_context
+@click.option("--version", "-v", is_flag=True,
+              help="Print the agent's version and exit.")
+def cli(ctx, version):
+    if version:
+        click.echo(__version__)
+        ctx.exit()
+    elif not ctx.invoked_subcommand:
+        ctx.fail("Missing command.")
 
 cli.add_command(upsert_databases)
 cli.add_command(run)
 cli.add_command(server)
 cli.add_command(drop_user)
-cli.add_command(version)
