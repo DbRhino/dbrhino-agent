@@ -1,7 +1,7 @@
-from . import db
+import os
 import json
-from os.path import join
 import collections
+from . import db
 
 SERVER_URL = "https://app.dbrhino.com"
 
@@ -32,4 +32,4 @@ class Config(object):
         return self.databases[name]
 
     def remote_url(self, path):
-        return join(self.server_url, path.lstrip("/"))
+        return os.path.join(self.server_url, path.lstrip("/"))

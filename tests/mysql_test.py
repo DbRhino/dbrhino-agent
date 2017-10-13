@@ -6,6 +6,7 @@ import pytest
 
 def _conf(username, password="password", schema="dbrhino_agent_tests"):
     return {
+        "type": "mysql",
         "host": "localhost",
         "user": username,
         "password": password,

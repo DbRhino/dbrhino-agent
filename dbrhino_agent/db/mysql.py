@@ -69,9 +69,9 @@ def revoke_everything(cur, my_uname):
 
 
 def connect(dbconf):
-    driver_conf = dbconf.copy()
-    driver_conf["passwd"] = driver_conf["password"]
-    driver_conf.pop("password")
+    driver_keys = ["host", "port", "database", "user"]
+    driver_conf = {k: dbconf[k] for k in driver_keys if k in dbconf}
+    driver_conf["passwd"] = dbconf["password"]
     return mysql.connect(**driver_conf)
 
 

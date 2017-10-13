@@ -8,6 +8,7 @@ from daemonize import Daemonize
 from . import config as config_
 from .dbrhino import DbRhino, Grant, GrantResult
 from .version import __version__
+from . import interactive
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -30,7 +31,10 @@ class _ConfigType(click.ParamType):
 
 CONFIG_FILE = _ConfigType()
 CONFIG = ("--config", "-c")
-CONFIG_OPTS = dict(type=CONFIG_FILE, required=True)
+CONFIG_OPTS = dict(type=CONFIG_FILE, required=True,
+                   help="Path to the configuration file")
+CONFIG_PATH_OPTS = CONFIG_OPTS.copy()
+CONFIG_PATH_OPTS.pop("type")
 
 
 @click.command("upsert-databases")
@@ -112,6 +116,24 @@ def drop_user(config, database, username):
     config.find_database(database).drop_user(username)
 
 
+@click.command()
+@click.pass_context
+@click.option(*CONFIG, **CONFIG_PATH_OPTS)
+def configure(ctx, config):
+    config_path = config  # Renamed to clarify that this is just a path in this
+                          # context
+    ctx.exit(interactive.configure(config_path))
+
+
+@click.command("add-database")
+@click.pass_context
+@click.option(*CONFIG, **CONFIG_PATH_OPTS)
+def add_database(ctx, config):
+    config_path = config  # Renamed to clarify that this is just a path in this
+                          # context
+    ctx.exit(interactive.add_database(config_path))
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option("--version", "-v", is_flag=True,
@@ -127,3 +149,5 @@ cli.add_command(upsert_databases)
 cli.add_command(run)
 cli.add_command(server)
 cli.add_command(drop_user)
+cli.add_command(configure)
+cli.add_command(add_database)
