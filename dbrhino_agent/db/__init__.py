@@ -1,5 +1,5 @@
 def create(*, name, **dbconf):
-    if dbconf["type"] == "postgresql":
+    if dbconf["type"] in ["postgresql", "redshift"]:
         from .postgresql import Postgresql
         cls = Postgresql
     elif dbconf["type"] == "mysql":
