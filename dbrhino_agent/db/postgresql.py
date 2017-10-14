@@ -157,8 +157,8 @@ class controlled_cursor(object):
 
 class Postgresql(common.Database):
     def implement_grant(self, grant):
-        logger.info("implementing grant for %s in %s",
-                    grant.username, self.name)
+        logger.debug("implementing grant for %s in %s",
+                     grant.username, self.name)
         with controlled_cursor(self.dbconf) as cur:
             if grant.password:
                 apply_pw(cur, grant.username, grant.password)
@@ -174,7 +174,7 @@ class Postgresql(common.Database):
         with controlled_cursor(self.dbconf) as cur:
             if not find_username(cur, username):
                 return GrantResult.NO_CHANGE
-            logger.info("dropping user %s from %s", username, self.name)
+            logger.debug("dropping user %s from %s", username, self.name)
             catalog = Catalog.discover(cur)
             revoke_everything(cur, catalog, username)
             cur.connection.commit()
