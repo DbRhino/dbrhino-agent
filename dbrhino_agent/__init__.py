@@ -87,6 +87,15 @@ def run(config):
     _run_once(DbRhino(config))
 
 
+def reload_config(config):
+    try:
+        new_config = config_.Config.from_file(config.filename)
+    except:
+        logger.exception("Issue reloading the config file")
+        return config
+    return new_config
+
+
 @click.command()
 @click.option(*CONFIG, **CONFIG_OPTS)
 @click.option("--interval-secs", type=click.INT, default=30)
@@ -98,6 +107,7 @@ def server(config, interval_secs, pidfile, logfile):
     fh.setFormatter(fmt)
     logger.addHandler(fh)
     def run_server():
+        config = reload_config(config)
         dbrhino = DbRhino(config)
         while True:
             _run_once(dbrhino)
@@ -122,7 +132,12 @@ def drop_user(config, database, username):
 def configure(ctx, config):
     config_path = config  # Renamed to clarify that this is just a path in this
                           # context
-    ctx.exit(interactive.configure(config_path))
+    try:
+        interactive.configure(config_path)
+    except interactive.InteractiveException:
+        print("Unable to get this going.. Please contact "
+              "support@dbrhino.com for assistance.")
+        ctx.exit(1)
 
 
 @click.command("add-database")
@@ -131,7 +146,12 @@ def configure(ctx, config):
 def add_database(ctx, config):
     config_path = config  # Renamed to clarify that this is just a path in this
                           # context
-    ctx.exit(interactive.add_database(config_path))
+    try:
+        interactive.add_database(config_path)
+    except interactive.InteractiveException:
+        print("Unable to get this going.. Please contact "
+              "support@dbrhino.com for assistance.")
+        ctx.exit(1)
 
 
 @click.group(invoke_without_command=True)
