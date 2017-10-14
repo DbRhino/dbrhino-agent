@@ -12,16 +12,6 @@ from . import interactive
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-fmt = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s:%(lineno)d] %(message)s")
-
-
-def _handle_config(config):
-    if config.debug:
-        logger.setLevel(logging.DEBUG)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setFormatter(fmt)
-        logger.addHandler(sh)
-    return config
 
 
 class _ConfigType(click.ParamType):
@@ -40,7 +30,7 @@ CONFIG_PATH_OPTS.pop("type")
 @click.command("upsert-databases")
 @click.option(*CONFIG, **CONFIG_OPTS)
 def upsert_databases(config):
-    _handle_config(config)
+    config.setup_logging(logger)
     DbRhino(config).upsert_databases()
 
 
@@ -69,8 +59,9 @@ def _fetch_and_apply_grants(dbrhino):
     dbrhino.checkin(applied_grants)
 
 
-def _run_once(dbrhino):
+def _run_once(config):
     try:
+        dbrhino = DbRhino(config)
         dbrhino.upsert_databases()
     except:
         logger.exception("Error while upserting databases")
@@ -83,37 +74,37 @@ def _run_once(dbrhino):
 @click.command()
 @click.option(*CONFIG, **CONFIG_OPTS)
 def run(config):
-    _handle_config(config)
-    _run_once(DbRhino(config))
+    config.setup_logging(logger)
+    _run_once(config)
 
 
 def reload_config(config):
     try:
         new_config = config_.Config.from_file(config.filename)
+        return new_config
     except:
         logger.exception("Issue reloading the config file")
         return config
-    return new_config
+
+
+def run_server(config):
+    while True:
+        config = reload_config(config)
+        _run_once(config)
+        time.sleep(config.server.interval_secs)
 
 
 @click.command()
 @click.option(*CONFIG, **CONFIG_OPTS)
-@click.option("--interval-secs", type=click.INT, default=30)
-@click.option("--pidfile", required=True)
-@click.option("--logfile", required=True)
-def server(config, interval_secs, pidfile, logfile):
-    _handle_config(config)
-    fh = logging.FileHandler(logfile, "a")
-    fh.setFormatter(fmt)
-    logger.addHandler(fh)
-    def run_server():
-        config = reload_config(config)
-        dbrhino = DbRhino(config)
-        while True:
-            _run_once(dbrhino)
-            time.sleep(interval_secs)
-    daemon = Daemonize(app="dbrhino_agent", pid=pidfile, action=run_server,
-                       logger=logger, keep_fds=[fh.stream.fileno()])
+def server(config):
+    config.setup_logging(logger)
+    fh = config.server.setup_logging(logger)
+    runner = lambda: run_server(config)
+    daemon = Daemonize(app="dbrhino_agent",
+                       pid=config.server.pidfile,
+                       action=runner,
+                       logger=logger,
+                       keep_fds=[fh.stream.fileno()])
     daemon.start()
 
 
@@ -122,7 +113,7 @@ def server(config, interval_secs, pidfile, logfile):
 @click.option("--database", required=True)
 @click.option("--username", required=True)
 def drop_user(config, database, username):
-    _handle_config(config)
+    config.setup_logging(logger)
     config.find_database(database).drop_user(username)
 
 

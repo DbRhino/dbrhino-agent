@@ -25,10 +25,12 @@ def _failure(answer, checkers):
     return None
 
 
-def _ask(prompt, *checkers):
+def _ask(prompt, *checkers, **kwargs):
     n_checks = 5
     for count in range(n_checks):
-        answer = input(prompt)
+        answer = input(prompt).strip()
+        if not answer and "default" in kwargs:
+            answer = kwargs["default"]
         fail = _failure(answer, checkers)
         if not fail:
             return answer
@@ -54,11 +56,11 @@ def configure(config_file):
     if not conf_json.get("access_token"):
         click.echo("You should have received a token for your agent "
                    "when you registered with DbRhino.")
-        token = _ask("Enter your token here: ", _NONEMPTY).strip()
+        token = _ask("Enter your token here: ", _NONEMPTY)
         conf_json["access_token"] = token
-        with open(config_file, "w") as f:
-            json.dump(conf_json, fp=f, indent=2)
-            f.write("\n")
+    with open(config_file, "w") as f:
+        json.dump(conf_json, fp=f, indent=2)
+        f.write("\n")
     config = config_.Config(**conf_json)
     dbrhino = DbRhino(config)
     try:
@@ -73,7 +75,7 @@ def configure(config_file):
 Excellent! I was able to communicate with DbRhino. The next
 step is to start the agent server and then add a database. Run:
 
-    dbrhino-agent server --config {0} --pidfile dbrhino-pid --logfile dbrhino-logs
+    dbrhino-agent server --config {0}
     dbrhino-agent add-database --config {0}
 """.format(config_file))
 
@@ -129,7 +131,8 @@ def _preamble(dbtype):
 def _build_dbconf(dbtype):
     host = _ask("Host: ", _NONEMPTY)
     port_prompt = "Port (default {}): ".format(PORT_DEFAULTS[dbtype])
-    port = _ask(port_prompt, RE(r"^[0-9]*$", "Must be numeric"))
+    port = _ask(port_prompt, RE(r"^[0-9]*$", "Must be numeric"),
+                default=PORT_DEFAULTS[dbtype])
     db_required = (dbtype != "mysql")
     db_prompt = "Database{}: ".format("" if db_required else " (optional)")
     db_checker = (_NONEMPTY if db_required else _WHATEVER)
@@ -139,7 +142,7 @@ def _build_dbconf(dbtype):
     dbconf = {
         "type": dbtype,
         "host": host,
-        "port": int(port or PORT_DEFAULTS[dbtype]),
+        "port": port,
         "user": user,
         "password": password,
     }
