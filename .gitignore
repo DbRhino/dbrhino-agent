@@ -6,3 +6,6 @@ config.json
 /build/
 /dist/
 /.cache/
+dbrhino.json
+dbrhino.log
+dbrhino.pid
