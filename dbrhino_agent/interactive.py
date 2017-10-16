@@ -30,7 +30,7 @@ def _ask(prompt, *checkers, **kwargs):
     for count in range(n_checks):
         answer = input(prompt).strip()
         if not answer and "default" in kwargs:
-            answer = kwargs["default"]
+            answer = str(kwargs["default"])
         fail = _failure(answer, checkers)
         if not fail:
             return answer
