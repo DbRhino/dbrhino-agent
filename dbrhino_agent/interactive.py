@@ -142,7 +142,7 @@ def _build_dbconf(dbtype):
     dbconf = {
         "type": dbtype,
         "host": host,
-        "port": port,
+        "port": int(port),
         "user": user,
         "password": password,
     }
