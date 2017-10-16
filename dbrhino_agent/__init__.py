@@ -100,6 +100,10 @@ def server(config):
     config.setup_logging(logger)
     fh = config.server.setup_logging(logger)
     runner = lambda: run_server(config)
+    click.echo("Starting... Process ID will be saved to {} and logs to {}. "
+               "Details on configuring the server can be found at "
+               "https://www.dbrhino.com/docs/agent/index.html#server-configuration"
+               .format(config.server.pidfile, config.server.logfile))
     daemon = Daemonize(app="dbrhino_agent",
                        pid=config.server.pidfile,
                        action=runner,
@@ -126,8 +130,8 @@ def configure(ctx, config):
     try:
         interactive.configure(config_path)
     except interactive.InteractiveException:
-        print("Unable to get this going.. Please contact "
-              "support@dbrhino.com for assistance.")
+        click.echo("Unable to get this going.. Please contact "
+                   "support@dbrhino.com for assistance.")
         ctx.exit(1)
 
 
@@ -140,8 +144,8 @@ def add_database(ctx, config):
     try:
         interactive.add_database(config_path)
     except interactive.InteractiveException:
-        print("Unable to get this going.. Please contact "
-              "support@dbrhino.com for assistance.")
+        click.echo("Unable to get this going.. Please contact "
+                   "support@dbrhino.com for assistance.")
         ctx.exit(1)
 
 
