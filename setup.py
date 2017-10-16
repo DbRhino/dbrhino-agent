@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="dbrhino-agent",
-    version="0.3.3",
+    version="0.3.4",
     description="Agent for dbrhino",
     author="Buck Ryan",
     url="https://dbrhino.com",
