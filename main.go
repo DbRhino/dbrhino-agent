@@ -42,12 +42,14 @@ func configureLogging() {
 	}
 	fileBackend := logging.NewLogBackend(f, "", 0)
 	fileFormatter := logging.NewBackendFormatter(fileBackend, fileFormat)
+	fileLeveled := logging.AddModuleLevel(fileFormatter)
+	fileLeveled.SetLevel(logging.INFO, "")
 	if debugModeEnabled() {
 		stderrBackend := logging.NewLogBackend(os.Stderr, "", 0)
 		stderrFormatter := logging.NewBackendFormatter(stderrBackend, stderrFormat)
-		logging.SetBackend(fileFormatter, stderrFormatter)
+		logging.SetBackend(fileLeveled, stderrFormatter)
 	} else {
-		logging.SetBackend(fileFormatter)
+		logging.SetBackend(fileLeveled)
 	}
 }
 

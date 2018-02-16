@@ -182,6 +182,10 @@ func handleGrantsResponse(app *Application, grantsResponse *GrantsResponse) *Che
 			continue
 		}
 		defer regItem.Impl.getDB().Close()
+		if err := regItem.Impl.cacheGlobalContextData(); err != nil {
+			regItem.setAndLogError(err)
+			continue
+		}
 	}
 	checkin := newCheckinResult()
 	for _, user := range grantsResponse.Users {
