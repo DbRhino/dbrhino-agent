@@ -4,73 +4,79 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"gopkg.in/yaml.v2"
+	"strings"
 )
 
-const DATA_DIR = "~/.dbrhino"
+const DEFAULT_CONFIG_DIR = "~/.dbrhino"
+const DEFAULT_LOG_PATH = "~/.dbrhino/agent.log"
+const DEFAUT_SERVER_URL = "https://app.dbrhino.com"
+
+func getConfigDir() string {
+	dir := os.Getenv("DBRHINO_AGENT_CONFIG_DIR")
+	if dir == "" {
+		dir = DEFAULT_CONFIG_DIR
+	}
+	return expandUser(dir)
+}
+
+func makeConfigDir() error {
+	return os.Mkdir(getConfigDir(), os.ModePerm)
+}
 
 type Config struct {
-	AccessToken string `yaml:"access_token"`
-	ServerUrl   string `yaml:"server_url"`
-	Debug       bool   `yaml:"debug"`
-}
-
-func NewConfig() *Config {
-	return &Config{
-		Debug:     false,
-		ServerUrl: "https://app.dbrhino.com",
-	}
-}
-
-func makeDataDirectory() error {
-	return os.Mkdir(expandUser(DATA_DIR), os.ModePerm)
+	AccessToken    string
+	ServerUrl      string
+	Debug          bool
+	LogPath        string
+	PrivateKeyPath string
+	PublicKeyPath  string
 }
 
 func readConfig() (*Config, error) {
-	conf := NewConfig()
-	if !fileExists(conf.path()) {
-		return conf, nil
-	}
-	yamlFile, err := ioutil.ReadFile(conf.path())
-	if err != nil {
-		return nil, err
-	}
-	err = yaml.Unmarshal(yamlFile, conf)
-	if err != nil {
-		return nil, err
-	}
+	conf := &Config{}
+	conf.readDebugMode()
+	conf.readServerUrl()
+	conf.readAccessToken()
+	conf.readPrivateKeyPath()
+	conf.readPublicKeyPath()
+	conf.readLogPath()
 	return conf, nil
 }
 
-func (conf *Config) write() error {
-	data, err := yaml.Marshal(conf)
-	if err != nil {
-		return err
+func (c *Config) readDebugMode() {
+	c.Debug = os.Getenv("DBRHINO_AGENT_DEBUG") != ""
+}
+
+func (c *Config) readServerUrl() {
+	if env := os.Getenv("DBRHINO_AGENT_SERVER_URL"); env != "" {
+		c.ServerUrl = env
+	} else {
+		c.ServerUrl = DEFAUT_SERVER_URL
 	}
-	err = ioutil.WriteFile(conf.path(), data, 0644)
+}
+
+func (c *Config) readAccessToken() {
+	path := filepath.Join(getConfigDir(), "token")
+	dat, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		logger.Errorf("could not read access token file: %s", err)
+	} else {
+		c.AccessToken = strings.TrimSpace(string(dat))
 	}
-	return nil
 }
 
-func (conf *Config) path() string {
-	return filepath.Join(expandUser(DATA_DIR), "config.yml")
+func (c *Config) readPrivateKeyPath() {
+	c.PrivateKeyPath = filepath.Join(getConfigDir(), "agent.pem")
 }
 
-func (conf *Config) privateKeyPath() string {
-	return filepath.Join(expandUser(DATA_DIR), "agent.pem")
+func (c *Config) readPublicKeyPath() {
+	c.PublicKeyPath = filepath.Join(getConfigDir(), "agent.pub")
 }
 
-func (conf *Config) publicKeyPath() string {
-	return filepath.Join(expandUser(DATA_DIR), "agent.pub")
-}
-
-func (conf *Config) pidFile() string {
-	return filepath.Join(expandUser(DATA_DIR), "agent.pid")
-}
-
-func (conf *Config) logPath() string {
-	return filepath.Join(expandUser(DATA_DIR), "agent.log")
+func (c *Config) readLogPath() {
+	path := os.Getenv("DBRHINO_AGENT_LOG_PATH")
+	if path == "" {
+		path = DEFAULT_LOG_PATH
+	}
+	c.LogPath = expandUser(path)
 }

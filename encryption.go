@@ -14,7 +14,7 @@ import (
 )
 
 func privateKeyFileExists(conf *Config) bool {
-	return fileExists(conf.privateKeyPath())
+	return fileExists(conf.PrivateKeyPath)
 }
 
 func encodePublicKey(key *rsa.PrivateKey, conf *Config) ([]byte, error) {
@@ -40,7 +40,7 @@ func generateAndWritePrivateKey(conf *Config) (*rsa.PrivateKey, error) {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	}
-	certOut, err := os.Create(conf.privateKeyPath())
+	certOut, err := os.Create(conf.PrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func generateAndWritePrivateKey(conf *Config) (*rsa.PrivateKey, error) {
 }
 
 func readPrivateKey(conf *Config) (*rsa.PrivateKey, error) {
-	data, err := ioutil.ReadFile(conf.privateKeyPath())
+	data, err := ioutil.ReadFile(conf.PrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}

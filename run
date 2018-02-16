@@ -1,0 +1,4 @@
+#!/bin/bash
+DBRHINO_AGENT_DEBUG=1 \
+DBRHINO_AGENT_SERVER_URL=http://dbrhino.dev:5000 \
+go run *.go
