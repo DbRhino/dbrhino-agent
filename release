@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+import os
+import sys
+import subprocess
+import tempfile
+import requests
+
+
+def call(*args):
+    return subprocess.check_output(args).decode("utf-8").strip()
+
+print("Fetching remote repository")
+call("git", "fetch")
+
+
+print("Checking repository status")
+status = call("git", "status")
+if "branch is ahead" in status:
+    print("You have unpushed commits", file=sys.stderr)
+    sys.exit(1)
+if "branch is behind" in status:
+    print("You are behind origin", file=sys.stderr)
+    sys.exit(1)
+porcelain = call("git", "status", "--porcelain")
+dirty = [x for x in porcelain.splitlines() if not x.startswith("??")]
+if len(dirty) > 0:
+    print("Your local repository is dirty", file=sys.stderr)
+    sys.exit(1)
+
+
+print("Determining release version")
+version = call("./run", "--version").split()[-1]
+tag = "v" + version
+
+
+print("Checking if that version exists")
+output = call("git", "tag", "--list", tag)
+if output:
+    confirm = input("Tag {} already exists, continue? [yN]".format(tag))
+    if confirm not in ["y", "Y"]:
+        sys.exit(1)
+
+
+print("Gathering description")
+desc_file = "/tmp/dbrhino-agent-release-" + version + ".txt"
+subprocess.check_call(["vim", desc_file])
+with open(desc_file) as f:
+    description = f.read()
+if not description:
+    print("No description given", file=sys.stderr)
+    sys.exit(1)
+
+
+print("Releasing to GitHub")
+payload = {
+    "name": tag,
+    "tag_name": tag,
+    "target_commitish": "master",
+    "body": description,
+    "draft": False,
+    "prerelease": False,
+}
+url = "https://api.github.com/repos/dbrhino/dbrhino-agent/releases"
+token = os.environ["DBRHINO_GITHUB_TOKEN"]
+headers = {"Authorization": "token " + token}
+resp = requests.post(url, json=payload, headers=headers)
+resp.raise_for_status()
+print(resp.json()["html_url"])
