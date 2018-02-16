@@ -13,8 +13,6 @@ to manage your database grants.
 
 ## Installation
 
-The agent is available on PyPi and can be downloaded using pip:
-
 ```
-pip3 install dbrhino-agent
+go get github.com/dbrhino/dbrhino-agent
 ```
