@@ -16,3 +16,4 @@ to manage your database grants.
 ```
 go get github.com/dbrhino/dbrhino-agent
 ```
+
