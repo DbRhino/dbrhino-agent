@@ -149,7 +149,7 @@ type RegistryItem struct {
 
 func (ri *RegistryItem) setAndLogError(err error) {
 	ri.Error = err
-	logger.Error(err.Error)
+	logger.Errorf("registry item error: %s", err)
 }
 
 type ConnRegistry map[int]*RegistryItem
