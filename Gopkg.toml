@@ -37,6 +37,10 @@
   name = "github.com/op/go-logging"
   version = "1.0.0"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/urfave/cli"
+
 [prune]
   go-tests = true
   unused-packages = true

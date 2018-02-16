@@ -4,4 +4,4 @@ DBRHINO_AGENT_DEBUG=1 \
 DBRHINO_AGENT_SERVER_URL=http://dbrhino.dev:5000 \
 DBRHINO_AGENT_CONFIG_DIR=$HOME/.dbrhino \
 DBRHINO_AGENT_LOG_PATH=$HOME/.dbrhino/agent.log \
-go run *.go
+go run *.go "$@"

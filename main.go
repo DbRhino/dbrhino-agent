@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
+	"github.com/urfave/cli"
 )
 
 var logger = logging.MustGetLogger("grants")
@@ -79,7 +80,7 @@ func (app *Application) runGrantFetchAndApply() error {
 	return err
 }
 
-func main() {
+func runServer(c *cli.Context) error {
 	configureLogging()
 	conf, err := readAndHandleConfig()
 	if err != nil {
@@ -105,4 +106,21 @@ func main() {
 		}
 		time.Sleep(sleepDuration)
 	}
+	return nil
+}
+
+func main() {
+	app := cli.NewApp()
+	app.Name = "dbrhino-agent"
+	app.Version = AGENT_VERSION
+	app.Copyright = "(c) 2018 The Buck Codes Here, LLC"
+	app.HelpName = "dbrhino-agent"
+	app.Usage = "Agent application for https://www.dbrhino.com"
+	app.Commands = []cli.Command{
+		cli.Command{
+			Name:   "server",
+			Action: runServer,
+		},
+	}
+	app.Run(os.Args)
 }
