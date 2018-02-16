@@ -2,8 +2,6 @@ package main
 
 import (
 	"os"
-	"os/user"
-	"path/filepath"
 )
 
 func fileExists(path string) bool {
@@ -15,16 +13,4 @@ func fileExists(path string) bool {
 		return false
 	}
 	panic(err)
-}
-
-func expandUser(path string) string {
-	if path[:2] != "~/" {
-		return path
-	}
-	usr, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-	dir := usr.HomeDir
-	return filepath.Join(dir, path[2:])
 }

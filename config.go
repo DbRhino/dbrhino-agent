@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	DEFAULT_CONFIG_DIR = "~/.dbrhino"
-	DEFAULT_LOG_PATH   = "~/.dbrhino/agent.log"
+	DEFAULT_CONFIG_DIR = "/etc/dbrhino-agent"
+	DEFAULT_LOG_PATH   = "/var/log/dbrhino-agent.log"
 	DEFAUT_SERVER_URL  = "https://app.dbrhino.com"
 
 	ENV_CONFIG_DIR = "DBRHINO_AGENT_CONFIG_DIR"
@@ -18,40 +18,40 @@ const (
 	ENV_LOG_PATH   = "DBRHINO_AGENT_LOG_PATH"
 )
 
+func debugModeEnabled() bool {
+	return os.Getenv(ENV_DEBUG) != ""
+}
+
+func getLogPath() string {
+	path := os.Getenv(ENV_LOG_PATH)
+	if path == "" {
+		path = DEFAULT_LOG_PATH
+	}
+	return path
+}
+
 func getConfigDir() string {
 	dir := os.Getenv(ENV_CONFIG_DIR)
 	if dir == "" {
 		dir = DEFAULT_CONFIG_DIR
 	}
-	return expandUser(dir)
-}
-
-func makeConfigDir() error {
-	return os.Mkdir(getConfigDir(), os.ModePerm)
+	return dir
 }
 
 type Config struct {
 	AccessToken    string
 	ServerUrl      string
-	Debug          bool
-	LogPath        string
 	PrivateKeyPath string
 	PublicKeyPath  string
 }
 
 func readConfig() (*Config, error) {
 	conf := &Config{}
-	conf.readDebugMode()
 	conf.readServerUrl()
 	conf.readAccessToken()
 	conf.readPrivateKeyPath()
 	conf.readPublicKeyPath()
-	conf.readLogPath()
 	return conf, nil
-}
-
-func (c *Config) readDebugMode() {
-	c.Debug = os.Getenv(ENV_DEBUG) != ""
 }
 
 func (c *Config) readServerUrl() {
@@ -78,12 +78,4 @@ func (c *Config) readPrivateKeyPath() {
 
 func (c *Config) readPublicKeyPath() {
 	c.PublicKeyPath = filepath.Join(getConfigDir(), "agent.pub")
-}
-
-func (c *Config) readLogPath() {
-	path := os.Getenv(ENV_LOG_PATH)
-	if path == "" {
-		path = DEFAULT_LOG_PATH
-	}
-	c.LogPath = expandUser(path)
 }

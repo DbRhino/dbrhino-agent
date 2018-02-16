@@ -33,15 +33,15 @@ func askUserForAccessToken() (string, error) {
 	return strings.TrimSpace(access_token), nil
 }
 
-func configureLogging(conf *Config) {
-	f, err := os.OpenFile(conf.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
+func configureLogging() {
+	f, err := os.OpenFile(getLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 	if err != nil {
 		logger.Error("Could not open file for logging: %s", err)
 		return
 	}
 	fileBackend := logging.NewLogBackend(f, "", 0)
 	fileFormatter := logging.NewBackendFormatter(fileBackend, fileFormat)
-	if conf.Debug {
+	if debugModeEnabled() {
 		stderrBackend := logging.NewLogBackend(os.Stderr, "", 0)
 		stderrFormatter := logging.NewBackendFormatter(stderrBackend, stderrFormat)
 		logging.SetBackend(fileFormatter, stderrFormatter)
@@ -80,12 +80,11 @@ func (app *Application) runGrantFetchAndApply() error {
 }
 
 func main() {
-	makeConfigDir()
+	configureLogging()
 	conf, err := readAndHandleConfig()
 	if err != nil {
 		logger.Fatal(err)
 	}
-	configureLogging(conf)
 	key, err := readOrGeneratePrivateKey(conf)
 	if err != nil {
 		logger.Fatal(err)
