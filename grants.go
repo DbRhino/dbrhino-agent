@@ -56,10 +56,15 @@ func updateUser(app *Application, grantsResponse *GrantsResponse,
 	if regItem.Error != nil {
 		return newUserResult(user, RESULT_CONNECTION_ISSUE)
 	}
-	if user.EncryptedPassword == "" {
+	var userPw string
+	err = nil
+	if user.DecryptedPassword != "" {
+		userPw = user.DecryptedPassword
+	} else if user.EncryptedPassword == "" {
 		return newUserResult(user, RESULT_NO_PASSWORD)
+	} else {
+		userPw, err = decryptPassword(app, user.EncryptedPassword)
 	}
-	userPw, err := decryptPassword(app, user.EncryptedPassword)
 	if err != nil {
 		return unknownErrorUserResult(user, err)
 	}
@@ -171,7 +176,13 @@ func handleGrantsResponse(app *Application, grantsResponse *GrantsResponse) *Che
 			regItem.setAndLogError(errors.New(fmt.Sprintf("Unknown database type: %s", db.Type)))
 			continue
 		}
-		connPw, err := decryptPassword(app, db.EncryptedPassword)
+		var connPw string
+		var err error
+		if db.DecryptedPassword != "" {
+			connPw = db.DecryptedPassword
+		} else {
+			connPw, err = decryptPassword(app, db.EncryptedPassword)
+		}
 		if err != nil {
 			regItem.setAndLogError(err)
 			continue
