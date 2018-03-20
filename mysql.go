@@ -5,13 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/flosch/pongo2"
 	_ "github.com/go-sql-driver/mysql"
 )
-
-type MysqlGrantContext struct {
-	Type     string
-	Username string
-}
 
 type Mysql struct {
 	DB       *sql.DB
@@ -85,10 +81,10 @@ func (my *Mysql) cacheGlobalContextData() error {
 	return nil
 }
 
-func (my *Mysql) createGrantContext(username string) interface{} {
-	return &MysqlGrantContext{
-		Type:     "mysql",
-		Username: username,
+func (my *Mysql) createTemplateContext(username string) *pongo2.Context {
+	return &pongo2.Context{
+		"type":     "mysql",
+		"username": username,
 	}
 }
 

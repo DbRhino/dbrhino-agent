@@ -41,6 +41,10 @@
   branch = "master"
   name = "github.com/urfave/cli"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/flosch/pongo2"
+
 [prune]
   go-tests = true
   unused-packages = true

@@ -42,7 +42,7 @@ func TestSomething(t *testing.T) {
 				ConnectionId: 1,
 				UserId:       1,
 				Statements: []string{
-					"grant connect on database {{.Database}} to {{.Username}}",
+					"grant connect on database {{database}} to {{username}}",
 				},
 				Version:  "abc",
 				Username: "testUser123",
@@ -54,6 +54,10 @@ func TestSomething(t *testing.T) {
 	assert.Len(t, checkin.GrantResults, 1)
 	userResult := checkin.UserResults[0]
 	assert.Equal(t, userResult.UserId, 1)
-	assert.Nil(t, userResult.Error)
 	assert.Equal(t, userResult.Result, RESULT_APPLIED)
+	assert.Nil(t, userResult.Error)
+	grantResult := checkin.GrantResults[0]
+	assert.Equal(t, grantResult.GrantId, 1)
+	assert.Equal(t, grantResult.Result, RESULT_APPLIED)
+	assert.Nil(t, grantResult.Error)
 }

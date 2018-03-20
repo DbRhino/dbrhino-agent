@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
-	"html/template"
 	"regexp"
 	"strings"
+
+	"github.com/flosch/pongo2"
 )
 
 type DatabaseImpl interface {
@@ -19,7 +19,7 @@ type DatabaseImpl interface {
 	updatePassword(*User) error
 	createUser(*User) error
 	cacheGlobalContextData() error
-	createGrantContext(string) interface{}
+	createTemplateContext(string) *pongo2.Context
 	filterGrants([]Grant, *Connection) []*Grant
 	revokeEverything(string) error
 }
@@ -99,18 +99,22 @@ func updateUser(app *Application, grantsResponse *GrantsResponse,
 }
 
 func applyGrantStatements(impl *DatabaseImpl, grant *Grant) *GrantResult {
-	grantContext := (*impl).createGrantContext(grant.Username)
+	// SetAutoescape must be called in order for the templating engine to
+	// just treat this as a text template. This function call is global,
+	// but this repo never deals with HTML templates.
+	pongo2.SetAutoescape(false)
+	templateContext := (*impl).createTemplateContext(grant.Username)
 	for _, stmt := range grant.Statements {
-		tmpl, err := template.New("sql").Parse(stmt)
+		compiled, err := pongo2.FromString(stmt)
 		if err != nil {
 			// FIXME return more specific error that the template could not be parsed
 			return unknownErrorGrantResult(grant, err)
 		}
-		var tpl bytes.Buffer
-		if err = tmpl.Execute(&tpl, grantContext); err != nil {
+		rendered, err := compiled.Execute(*templateContext)
+		if err != nil {
 			return unknownErrorGrantResult(grant, err)
 		}
-		sqls := splitSqlBlock(tpl.String())
+		sqls := splitSqlBlock(rendered)
 		for _, sql := range sqls {
 			logger.Debugf("(%s) SQL: %s", (*impl).getName(), sql)
 			if _, err := (*impl).getDB().Exec(sql); err != nil {

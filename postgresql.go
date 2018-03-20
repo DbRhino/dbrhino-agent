@@ -5,18 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lib/pq"
+	"github.com/flosch/pongo2"
+	pglib "github.com/lib/pq"
 )
 
 type PgCatalog struct {
 	Database string
-	Schemas  []string
-}
-
-type PgGrantContext struct {
-	Type     string
-	Database string
-	Username string
 	Schemas  []string
 }
 
@@ -100,19 +94,6 @@ func (pg *PostgreSQL) discoverAllSchemas() ([]string, error) {
 	return schemas, nil
 }
 
-func (pg *PostgreSQL) discoverAndCacheSchemas(grantContext *PgGrantContext) error {
-	if pg.CachedCatalog == nil {
-		var catalog PgCatalog
-		schemas, err := pg.discoverAllSchemas()
-		if err != nil {
-			return err
-		}
-		catalog.Schemas = schemas
-		pg.CachedCatalog = &catalog
-	}
-	return nil
-}
-
 func (pg *PostgreSQL) cacheGlobalContextData() error {
 	db, err := pg.discoverCurrentDb()
 	if err != nil {
@@ -129,11 +110,11 @@ func (pg *PostgreSQL) cacheGlobalContextData() error {
 	return nil
 }
 
-func (pg *PostgreSQL) createGrantContext(username string) interface{} {
-	return &PgGrantContext{
-		Database: pg.CachedCatalog.Database,
-		Schemas:  pg.CachedCatalog.Schemas,
-		Username: username,
+func (pg *PostgreSQL) createTemplateContext(username string) *pongo2.Context {
+	return &pongo2.Context{
+		"database": pglib.QuoteIdentifier(pg.CachedCatalog.Database),
+		"schemas":  MapString(pg.CachedCatalog.Schemas, pglib.QuoteIdentifier),
+		"username": pglib.QuoteIdentifier(username),
 	}
 }
 
@@ -160,9 +141,9 @@ func (pg *PostgreSQL) updatePassword(user *User) error {
 
 func (pg *PostgreSQL) dropUser(user *User) error {
 	if err := pg.revokeEverything(user.Username); err != nil {
-		return nil
+		return err
 	}
-	quoted_uname := pq.QuoteIdentifier(user.Username)
+	quoted_uname := pglib.QuoteIdentifier(user.Username)
 	sql := fmt.Sprintf("DROP USER %s", quoted_uname)
 	if _, err := pg.DB.Exec(sql); err != nil {
 		return err
@@ -189,8 +170,8 @@ func (pg *PostgreSQL) filterGrants(orig []Grant, conn *Connection) []*Grant {
 }
 
 func (pg *PostgreSQL) revokeEverything(username string) error {
-	quoted_uname := pq.QuoteIdentifier(username)
-	quoted_db := pq.QuoteIdentifier(pg.CachedCatalog.Database)
+	quoted_uname := pglib.QuoteIdentifier(username)
+	quoted_db := pglib.QuoteIdentifier(pg.CachedCatalog.Database)
 	sql := fmt.Sprintf("REVOKE ALL ON DATABASE %s FROM %s", quoted_db, quoted_uname)
 	if _, err := pg.DB.Exec(sql); err != nil {
 		return err
@@ -203,7 +184,7 @@ func (pg *PostgreSQL) revokeEverything(username string) error {
 	}
 	for _, sqlBase := range schema_sqls {
 		for _, schema := range pg.CachedCatalog.Schemas {
-			quoted_schema := pq.QuoteIdentifier(schema)
+			quoted_schema := pglib.QuoteIdentifier(schema)
 			sql = fmt.Sprintf(sqlBase, quoted_schema, quoted_uname)
 			if _, err := pg.DB.Exec(sql); err != nil {
 				return err
@@ -217,7 +198,7 @@ type PgNative struct {
 }
 
 func (pg *PgNative) createUserSql(user *User) string {
-	quoted_uname := pq.QuoteIdentifier(user.Username)
+	quoted_uname := pglib.QuoteIdentifier(user.Username)
 	return fmt.Sprintf("CREATE USER %s PASSWORD '%s'", quoted_uname,
 		// See the notes in updatePassword around security and why the password
 		// is injected directly into this string
@@ -225,7 +206,7 @@ func (pg *PgNative) createUserSql(user *User) string {
 }
 
 func (pg *PgNative) updatePasswordSql(user *User) string {
-	quoted_uname := pq.QuoteIdentifier(user.Username)
+	quoted_uname := pglib.QuoteIdentifier(user.Username)
 	return fmt.Sprintf("ALTER USER %s WITH ENCRYPTED PASSWORD '%s'", quoted_uname,
 		// The password is injected directly into the SQL statement rather than
 		// using bindings because of https://github.com/lib/pq/issues/708. But
@@ -238,14 +219,14 @@ type Redshift struct {
 }
 
 func (rd *Redshift) createUserSql(user *User) string {
-	quoted_uname := pq.QuoteIdentifier(user.Username)
+	quoted_uname := pglib.QuoteIdentifier(user.Username)
 	return fmt.Sprintf("CREATE USER %s PASSWORD '%s'", quoted_uname,
 		// See notes above about password being injected directly here.
 		user.DecryptedPassword)
 }
 
 func (rd *Redshift) updatePasswordSql(user *User) string {
-	quoted_uname := pq.QuoteIdentifier(user.Username)
+	quoted_uname := pglib.QuoteIdentifier(user.Username)
 	return fmt.Sprintf("ALTER USER %s PASSWORD '%s'", quoted_uname,
 		// See notes above about password being injected directly here.
 		user.DecryptedPassword)
