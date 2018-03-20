@@ -79,9 +79,10 @@ const (
 )
 
 type UserResult struct {
-	UserId int    `json:"database_user_id"`
-	Result Result `json:"result"`
-	Error  error  `json:"error"`
+	UserId   int    `json:"database_user_id"`
+	Result   Result `json:"result"`
+	Error    error  `json:"-"`
+	ErrorStr string `json:"error"`
 }
 
 func newUserResult(user *User, result Result) *UserResult {
@@ -91,6 +92,7 @@ func newUserResult(user *User, result Result) *UserResult {
 func unknownErrorUserResult(user *User, err error) *UserResult {
 	res := newUserResult(user, RESULT_UNKNOWN_ERROR)
 	res.Error = err
+	res.ErrorStr = err.Error()
 	return res
 }
 
@@ -103,10 +105,11 @@ func (ur *UserResult) log() {
 }
 
 type GrantResult struct {
-	GrantId int    `json:"grant_id"`
-	Version string `json:"version"`
-	Result  Result `json:"result"`
-	Error   error  `json:"error"`
+	GrantId  int    `json:"grant_id"`
+	Version  string `json:"version"`
+	Result   Result `json:"result"`
+	Error    error  `json:"-"`
+	ErrorStr string `json:"error"`
 }
 
 func newGrantResult(grant *Grant, result Result) *GrantResult {
@@ -120,7 +123,16 @@ func newGrantResult(grant *Grant, result Result) *GrantResult {
 func unknownErrorGrantResult(grant *Grant, err error) *GrantResult {
 	res := newGrantResult(grant, RESULT_UNKNOWN_ERROR)
 	res.Error = err
+	res.ErrorStr = err.Error()
 	return res
+}
+
+func (gr *GrantResult) log() {
+	if gr.Error != nil {
+		logger.Errorf("Error applying grant %d: %s", gr.GrantId, gr.Error)
+	} else {
+		logger.Debugf("Grant apply result for grant %d: %s", gr.GrantId, gr.Result)
+	}
 }
 
 type CheckinRequest struct {

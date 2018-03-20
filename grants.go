@@ -107,8 +107,9 @@ func applyGrantStatements(impl *DatabaseImpl, grant *Grant) *GrantResult {
 	for _, stmt := range grant.Statements {
 		compiled, err := pongo2.FromString(stmt)
 		if err != nil {
-			// FIXME return more specific error that the template could not be parsed
-			return unknownErrorGrantResult(grant, err)
+			msg := fmt.Sprintf("Could not compile template << %s >> because: %s", stmt, err)
+			newErr := errors.New(msg)
+			return unknownErrorGrantResult(grant, newErr)
 		}
 		rendered, err := compiled.Execute(*templateContext)
 		if err != nil {
@@ -210,6 +211,7 @@ func handleGrantsResponse(app *Application, grantsResponse *GrantsResponse) *Che
 	}
 	for _, grant := range grantsResponse.Grants {
 		grantResult := applyGrant(&connRegistry, &grant)
+		grantResult.log()
 		checkin.GrantResults = append(checkin.GrantResults, grantResult)
 	}
 	return checkin
