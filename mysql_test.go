@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type PostgresqlTestSuite struct {
+type MysqlTestSuite struct {
 	suite.Suite
 	App *Application
 }
 
-const PG_URI_MASTER = "postgres://buck:password@localhost:5432/dbrhino_agent_tests?sslmode=disable"
-const PG_URI_TESTER = "postgres://testUser123:foobar1234@localhost:5432/dbrhino_agent_tests?sslmode=disable"
+const MYSQL_URI_MASTER = "root:password@tcp(localhost:3306)/"
+const MYSQL_URI_TESTER = "testUser123:foobar1234@tcp(localhost:3306)/"
 
-func withPostgresqlTestConnection(uri string, f func(*sql.DB)) {
-	DB, err := sql.Open("postgres", uri)
+func withMysqlTestConnection(uri string, f func(*sql.DB)) {
+	DB, err := sql.Open("mysql", uri)
 	if err != nil {
 		log.Fatalf("Error opening test database %s", err)
 	}
@@ -26,7 +26,7 @@ func withPostgresqlTestConnection(uri string, f func(*sql.DB)) {
 	f(DB)
 }
 
-func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
+func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 	return &GrantsResponse{
 		Connections: []Connection{
 			Connection{
@@ -34,10 +34,10 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 				Database: &Database{
 					Id:                1,
 					Name:              "foo",
-					Type:              "postgresql",
+					Type:              "mysql",
 					Host:              "localhost",
-					Port:              5432,
-					Username:          "buck",
+					Port:              3306,
+					Username:          "root",
 					DecryptedPassword: "password",
 					DefaultDatabase:   "dbrhino_agent_tests",
 				},
@@ -68,21 +68,15 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 	}
 }
 
-func execShouldPass(t *testing.T, DB *sql.DB, sql string) *sql.Result {
-	res, err := DB.Exec(sql)
-	assert.Nil(t, err)
-	return &res
-}
-
-func (suite *PostgresqlTestSuite) SetupTest() {
+func (suite *MysqlTestSuite) SetupTest() {
 	conf := &Config{}
 	app := &Application{conf, nil}
 	suite.App = app
-	withPostgresqlTestConnection(PG_URI_MASTER, func(DB *sql.DB) {
-		DB.Exec("drop role testUser123")
+	withMysqlTestConnection(MYSQL_URI_MASTER, func(DB *sql.DB) {
+		DB.Exec("drop user testUser123")
 		tx, err := DB.Begin()
 		assert.Nil(suite.T(), err)
-		execShouldPass(suite.T(), DB, "drop schema if exists test_schema cascade")
+		execShouldPass(suite.T(), DB, "drop schema if exists test_schema")
 		execShouldPass(suite.T(), DB, "create schema test_schema")
 		execShouldPass(suite.T(), DB, "create table test_schema.abc (x integer, y text)")
 		execShouldPass(suite.T(), DB, "insert into test_schema.abc values (1, 'a'), (2, 'b')")
@@ -92,10 +86,9 @@ func (suite *PostgresqlTestSuite) SetupTest() {
 	})
 }
 
-func (suite *PostgresqlTestSuite) TestBasicGrant() {
-	grantsResponse := postgresqlTestGrantResponse([]string{
-		"GRANT USAGE ON SCHEMA test_schema TO {{username}}",
-		"GRANT SELECT ON ALL TABLES IN SCHEMA test_schema TO {{username}}",
+func (suite *MysqlTestSuite) TestBasicGrant() {
+	grantsResponse := mysqlTestGrantResponse([]string{
+		"GRANT SELECT ON test_schema.* TO {{username}}",
 	})
 	checkin := handleGrantsResponse(suite.App, grantsResponse)
 	t := suite.T()
@@ -109,11 +102,11 @@ func (suite *PostgresqlTestSuite) TestBasicGrant() {
 	assert.Equal(t, grantResult.GrantId, 1)
 	assert.Equal(t, grantResult.Result, RESULT_APPLIED)
 	assert.Nil(t, grantResult.Error)
-	withPostgresqlTestConnection(PG_URI_TESTER, func(DB *sql.DB) {
+	withMysqlTestConnection(MYSQL_URI_TESTER, func(DB *sql.DB) {
 		execShouldPass(t, DB, "select * from test_schema.abc")
 	})
 }
 
-func TestPostgresql(t *testing.T) {
-	suite.Run(t, new(PostgresqlTestSuite))
+func TestMysql(t *testing.T) {
+	suite.Run(t, new(MysqlTestSuite))
 }
