@@ -41,8 +41,7 @@ func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 					DecryptedPassword: "password",
 					DefaultDatabase:   "dbrhino_agent_tests",
 				},
-				DbName:    "dbrhino_agent_tests",
-				IsDefault: true,
+				DbName: "dbrhino_agent_tests",
 			},
 		},
 		Users: []User{

@@ -82,7 +82,7 @@ func (app *Application) runGrantFetchAndApply() error {
 	return err
 }
 
-func runServer(c *cli.Context) error {
+func applicationInitialization() *Application {
 	configureLogging()
 	conf, err := readAndHandleConfig()
 	if err != nil {
@@ -92,23 +92,37 @@ func runServer(c *cli.Context) error {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	app := Application{
+	app := &Application{
 		conf: conf,
 		key:  key,
 	}
-	_, err = sendPubkey(&app)
+	_, err = sendPubkey(app)
 	if err != nil {
 		logger.Fatal(err)
 	}
+	return app
+}
+
+func runServer(c *cli.Context) error {
+	app := applicationInitialization()
 	sleepDuration := time.Duration(30) * time.Second
 	for {
-		err = app.runGrantFetchAndApply()
+		err := app.runGrantFetchAndApply()
 		if err != nil {
 			logger.Errorf("Unknown error during grant cycle: %s", err)
 		}
 		time.Sleep(sleepDuration)
 	}
 	return nil
+}
+
+func runOnce(c *cli.Context) error {
+	app := applicationInitialization()
+	err := app.runGrantFetchAndApply()
+	if err != nil {
+		logger.Errorf("Unknown error during grant cycle: %s", err)
+	}
+	return err
 }
 
 func main() {
@@ -122,6 +136,10 @@ func main() {
 		cli.Command{
 			Name:   "server",
 			Action: runServer,
+		},
+		cli.Command{
+			Name:   "once",
+			Action: runOnce,
 		},
 	}
 	app.Run(os.Args)

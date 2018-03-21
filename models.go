@@ -18,10 +18,9 @@ type Database struct {
 }
 
 type Connection struct {
-	Id        int       `json:"id"`
-	Database  *Database `json:"database"`
-	DbName    string    `json:"name"`
-	IsDefault bool      `json:"is_default"`
+	Id       int       `json:"id"`
+	Database *Database `json:"database"`
+	DbName   string    `json:"name"`
 }
 
 type User struct {
@@ -51,7 +50,7 @@ type GrantsResponse struct {
 
 func (gr *GrantsResponse) defaultConnection(databaseId int) (*Connection, error) {
 	for _, conn := range gr.Connections {
-		if conn.Database.Id == databaseId && conn.IsDefault {
+		if conn.Database.Id == databaseId {
 			return &conn, nil
 		}
 	}
