@@ -17,3 +17,7 @@ to manage your database grants.
 go get github.com/dbrhino/dbrhino-agent
 ```
 
+## Releasing
+
+1. Update version in `main.go`
+1. Run `./release`
