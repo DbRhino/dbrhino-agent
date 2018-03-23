@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/flosch/pongo2"
 	pglib "github.com/lib/pq"
@@ -26,6 +28,16 @@ type PostgreSQL struct {
 	Database      *Database
 }
 
+func PgQuoteLiteral(value string) string {
+	prefix := ""
+	if strings.Contains(value, `\`) {
+		prefix = "E"
+	}
+	value = strings.Replace(value, "'", "''", -1)
+	value = strings.Replace(value, `\`, `\\`, -1)
+	return prefix + "'" + value + "'"
+}
+
 func NewPostgreSQL(db *Database, flavor PgFlavor) *PostgreSQL {
 	return &PostgreSQL{
 		Flavor:   flavor,
@@ -35,11 +47,12 @@ func NewPostgreSQL(db *Database, flavor PgFlavor) *PostgreSQL {
 
 func (pg *PostgreSQL) connect(conn *Connection) error {
 	// TODO support sslmode and other options as needed
-	// TODO what if the password has string characters? url encoding necessary?
-	// or maybe just enclosing in single quotes?
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		conn.Database.Username, conn.Database.DecryptedPassword,
-		conn.Database.Host, conn.Database.Port, conn.DbName)
+		url.PathEscape(conn.Database.Username),
+		url.PathEscape(conn.Database.DecryptedPassword),
+		url.PathEscape(conn.Database.Host),
+		conn.Database.Port,
+		url.PathEscape(conn.DbName))
 	DB, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return err
@@ -129,9 +142,6 @@ func (pg *PostgreSQL) userExists(user *User) (bool, error) {
 }
 
 func (pg *PostgreSQL) updatePassword(user *User) error {
-	if err := checkPasswordChars(user.DecryptedPassword); err != nil {
-		return err
-	}
 	sql := pg.Flavor.updatePasswordSql(user)
 	if _, err := pg.DB.Exec(sql); err != nil {
 		return err
@@ -199,20 +209,18 @@ type PgNative struct {
 
 func (pg *PgNative) createUserSql(user *User) string {
 	quoted_uname := pglib.QuoteIdentifier(user.Username)
-	return fmt.Sprintf("CREATE USER %s PASSWORD '%s'", quoted_uname,
-		// See the notes in updatePassword around security and why the password
-		// is injected directly into this string
-		user.DecryptedPassword)
+	return fmt.Sprintf("CREATE USER %s PASSWORD %s", quoted_uname,
+		// See the notes in updatePasswordSql around security and why the
+		// password is injected directly into this string
+		PgQuoteLiteral(user.DecryptedPassword))
 }
 
 func (pg *PgNative) updatePasswordSql(user *User) string {
 	quoted_uname := pglib.QuoteIdentifier(user.Username)
-	return fmt.Sprintf("ALTER USER %s WITH ENCRYPTED PASSWORD '%s'", quoted_uname,
+	return fmt.Sprintf("ALTER USER %s WITH ENCRYPTED PASSWORD %s", quoted_uname,
 		// The password is injected directly into the SQL statement rather than
-		// using bindings because of https://github.com/lib/pq/issues/708. But
-		// we have matched the password against the regex in order to confirm
-		// there won't be any SQL injection issues.
-		user.DecryptedPassword)
+		// using bindings because of https://github.com/lib/pq/issues/708.
+		PgQuoteLiteral(user.DecryptedPassword))
 }
 
 type Redshift struct {
@@ -220,14 +228,14 @@ type Redshift struct {
 
 func (rd *Redshift) createUserSql(user *User) string {
 	quoted_uname := pglib.QuoteIdentifier(user.Username)
-	return fmt.Sprintf("CREATE USER %s PASSWORD '%s'", quoted_uname,
+	return fmt.Sprintf("CREATE USER %s PASSWORD %s", quoted_uname,
 		// See notes above about password being injected directly here.
-		user.DecryptedPassword)
+		PgQuoteLiteral(user.DecryptedPassword))
 }
 
 func (rd *Redshift) updatePasswordSql(user *User) string {
 	quoted_uname := pglib.QuoteIdentifier(user.Username)
-	return fmt.Sprintf("ALTER USER %s PASSWORD '%s'", quoted_uname,
+	return fmt.Sprintf("ALTER USER %s PASSWORD %s", quoted_uname,
 		// See notes above about password being injected directly here.
-		user.DecryptedPassword)
+		PgQuoteLiteral(user.DecryptedPassword))
 }

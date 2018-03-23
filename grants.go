@@ -26,14 +26,6 @@ type DatabaseImpl interface {
 
 var PASSWORD_REGEX = regexp.MustCompile(`(?i)^[a-z0-9 ]+$`)
 
-func checkPasswordChars(password string) error {
-	matched := PASSWORD_REGEX.MatchString(password)
-	if !matched {
-		return errors.New("Passwords may only contain letters, numbers, and spaces")
-	}
-	return nil
-}
-
 func splitSqlBlock(sqlBlock string) []string {
 	splitted := strings.Split(sqlBlock, ";")
 	var results []string
@@ -82,9 +74,6 @@ func updateUser(app *Application, grantsResponse *GrantsResponse,
 			return unknownErrorUserResult(user, err)
 		}
 		return newUserResult(user, RESULT_REVOKED)
-	}
-	if err := checkPasswordChars(user.DecryptedPassword); err != nil {
-		return unknownErrorUserResult(user, err)
 	}
 	if exists {
 		if err := (*impl).updatePassword(user); err != nil {

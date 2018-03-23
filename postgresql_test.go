@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,8 +16,15 @@ type PostgresqlTestSuite struct {
 	App *Application
 }
 
-const PG_URI_MASTER = "postgres://buck:password@localhost:5432/dbrhino_agent_tests?sslmode=disable"
-const PG_URI_TESTER = "postgres://testUser123:foobar1234@localhost:5432/dbrhino_agent_tests?sslmode=disable"
+const PG_MASTER_USER = "buck"
+const PG_MASTER_PASS = "password"
+const PG_TESTER_USER = "testUser123"
+const PG_TESTER_PASS = "PasW';drop table `foo`"
+
+func pgTesterUri(username string, password string) string {
+	return fmt.Sprintf("postgres://%s:%s@localhost:5432/dbrhino_agent_tests?sslmode=disable",
+		url.PathEscape(username), url.PathEscape(password))
+}
 
 func withPostgresqlTestConnection(uri string, f func(*sql.DB)) {
 	DB, err := sql.Open("postgres", uri)
@@ -37,8 +46,8 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 					Type:              "postgresql",
 					Host:              "localhost",
 					Port:              5432,
-					Username:          "buck",
-					DecryptedPassword: "password",
+					Username:          PG_MASTER_USER,
+					DecryptedPassword: PG_MASTER_PASS,
 					DefaultDatabase:   "dbrhino_agent_tests",
 				},
 				DbName: "dbrhino_agent_tests",
@@ -47,9 +56,9 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 		Users: []User{
 			User{
 				Id:                1,
-				DecryptedPassword: "foobar1234",
+				DecryptedPassword: PG_TESTER_PASS,
 				Active:            true,
-				Username:          "testUser123",
+				Username:          PG_TESTER_USER,
 				DatabaseId:        1,
 			},
 		},
@@ -61,7 +70,7 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 				UserId:       1,
 				Statements:   statements,
 				Version:      "abc",
-				Username:     "testUser123",
+				Username:     PG_TESTER_USER,
 			},
 		},
 	}
@@ -77,8 +86,8 @@ func (suite *PostgresqlTestSuite) SetupTest() {
 	conf := &Config{}
 	app := &Application{conf, nil}
 	suite.App = app
-	withPostgresqlTestConnection(PG_URI_MASTER, func(DB *sql.DB) {
-		DB.Exec("drop role testUser123")
+	withPostgresqlTestConnection(pgTesterUri(PG_MASTER_USER, PG_MASTER_PASS), func(DB *sql.DB) {
+		DB.Exec("drop role " + PG_TESTER_USER)
 		tx, err := DB.Begin()
 		assert.Nil(suite.T(), err)
 		execShouldPass(suite.T(), DB, "drop schema if exists test_schema cascade")
@@ -108,7 +117,7 @@ func (suite *PostgresqlTestSuite) TestBasicGrant() {
 	assert.Equal(t, grantResult.GrantId, 1)
 	assert.Equal(t, grantResult.Result, RESULT_APPLIED)
 	assert.Nil(t, grantResult.Error)
-	withPostgresqlTestConnection(PG_URI_TESTER, func(DB *sql.DB) {
+	withPostgresqlTestConnection(pgTesterUri(PG_TESTER_USER, PG_TESTER_PASS), func(DB *sql.DB) {
 		execShouldPass(t, DB, "select * from test_schema.abc")
 	})
 }

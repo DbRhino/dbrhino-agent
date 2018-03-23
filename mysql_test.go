@@ -5,6 +5,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -14,8 +15,20 @@ type MysqlTestSuite struct {
 	App *Application
 }
 
-const MYSQL_URI_MASTER = "root:password@tcp(localhost:3306)/"
-const MYSQL_URI_TESTER = "testUser123:foobar1234@tcp(localhost:3306)/"
+const MY_MASTER_USER = "root"
+const MY_MASTER_PASS = "password"
+const MY_TESTER_USER = "testUser123"
+const MY_TESTER_PASS = "PasW';drop table `foo`"
+
+func myTesterUri(username string, password string) string {
+	conf := &mysql.Config{
+		User:   username,
+		Passwd: password,
+		Net:    "tcp",
+		Addr:   "localhost:3306",
+	}
+	return conf.FormatDSN()
+}
 
 func withMysqlTestConnection(uri string, f func(*sql.DB)) {
 	DB, err := sql.Open("mysql", uri)
@@ -37,8 +50,8 @@ func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 					Type:              "mysql",
 					Host:              "localhost",
 					Port:              3306,
-					Username:          "root",
-					DecryptedPassword: "password",
+					Username:          MY_MASTER_USER,
+					DecryptedPassword: MY_MASTER_PASS,
 					DefaultDatabase:   "dbrhino_agent_tests",
 				},
 				DbName: "dbrhino_agent_tests",
@@ -47,9 +60,9 @@ func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 		Users: []User{
 			User{
 				Id:                1,
-				DecryptedPassword: "foobar1234",
+				DecryptedPassword: MY_TESTER_PASS,
 				Active:            true,
-				Username:          "testUser123",
+				Username:          MY_TESTER_USER,
 				DatabaseId:        1,
 			},
 		},
@@ -61,7 +74,7 @@ func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 				UserId:       1,
 				Statements:   statements,
 				Version:      "abc",
-				Username:     "testUser123",
+				Username:     MY_TESTER_USER,
 			},
 		},
 	}
@@ -71,8 +84,8 @@ func (suite *MysqlTestSuite) SetupTest() {
 	conf := &Config{}
 	app := &Application{conf, nil}
 	suite.App = app
-	withMysqlTestConnection(MYSQL_URI_MASTER, func(DB *sql.DB) {
-		DB.Exec("drop user testUser123")
+	withMysqlTestConnection(myTesterUri(MY_MASTER_USER, MY_MASTER_PASS), func(DB *sql.DB) {
+		DB.Exec("drop user " + MY_TESTER_USER)
 		tx, err := DB.Begin()
 		assert.Nil(suite.T(), err)
 		execShouldPass(suite.T(), DB, "drop schema if exists test_schema")
@@ -101,7 +114,7 @@ func (suite *MysqlTestSuite) TestBasicGrant() {
 	assert.Equal(t, grantResult.GrantId, 1)
 	assert.Equal(t, grantResult.Result, RESULT_APPLIED)
 	assert.Nil(t, grantResult.Error)
-	withMysqlTestConnection(MYSQL_URI_TESTER, func(DB *sql.DB) {
+	withMysqlTestConnection(myTesterUri(MY_TESTER_USER, MY_TESTER_PASS), func(DB *sql.DB) {
 		execShouldPass(t, DB, "select * from test_schema.abc")
 	})
 }

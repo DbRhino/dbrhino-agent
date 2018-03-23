@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/flosch/pongo2"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 type Mysql struct {
@@ -19,9 +19,14 @@ func NewMysql(db *Database) *Mysql {
 }
 
 func (my *Mysql) connect(conn *Connection) error {
-	connStr := fmt.Sprintf("%s:%s@tcp(%s:%d)/",
-		conn.Database.Username, conn.Database.DecryptedPassword,
-		conn.Database.Host, conn.Database.Port)
+	conf := &mysql.Config{
+		User:              conn.Database.Username,
+		Passwd:            conn.Database.DecryptedPassword,
+		Net:               "tcp",
+		Addr:              fmt.Sprintf("%s:%d", conn.Database.Host, conn.Database.Port),
+		InterpolateParams: true,
+	}
+	connStr := conf.FormatDSN()
 	DB, err := sql.Open("mysql", connStr)
 	if err != nil {
 		return err
@@ -38,7 +43,7 @@ func (my *Mysql) getName() string {
 	return my.Database.Name
 }
 
-const MYSQL_USER_HOST = "%" // FIXME
+const MYSQL_USER_HOST = "%" // FIXME make this configurable
 
 func (my *Mysql) userExists(user *User) (bool, error) {
 	sql := "SELECT user, host FROM mysql.user WHERE user = ? AND host = ?"
@@ -50,18 +55,22 @@ func (my *Mysql) userExists(user *User) (bool, error) {
 	return rows.Next(), nil
 }
 
+func (my *Mysql) fullUsername(username string) string {
+	quoted_uname := mysqlQuoteIdent(username)
+	quoted_host := mysqlQuoteIdent(MYSQL_USER_HOST)
+	return quoted_uname + "@" + quoted_host
+}
+
 func (my *Mysql) dropUser(user *User) error {
-	quoted_uname := mysqlQuoteIdent(user.Username)
-	sql := fmt.Sprintf("DROP USER %s@`%s`", quoted_uname, MYSQL_USER_HOST)
+	sql := fmt.Sprintf("DROP USER %s", my.fullUsername(user.Username))
 	_, err := my.DB.Exec(sql)
 	return err
 }
 
 func (my *Mysql) updatePassword(user *User) error {
-	quoted_uname := mysqlQuoteIdent(user.Username)
-	sql := fmt.Sprintf("SET PASSWORD FOR %s@`%s` = '%s'", quoted_uname,
-		MYSQL_USER_HOST, user.DecryptedPassword)
-	_, err := my.DB.Exec(sql)
+	sql := fmt.Sprintf("SET PASSWORD FOR %s = ?",
+		my.fullUsername(user.Username))
+	_, err := my.DB.Exec(sql, user.DecryptedPassword)
 	return err
 }
 
@@ -69,16 +78,10 @@ func mysqlQuoteIdent(ident string) string {
 	return "`" + strings.Replace(ident, "`", "``", -1) + "`"
 }
 
-func (my *Mysql) fullUsername(username string) string {
-	quoted_uname := mysqlQuoteIdent(username)
-	quoted_host := mysqlQuoteIdent(MYSQL_USER_HOST)
-	return quoted_uname + "@" + quoted_host
-}
-
 func (my *Mysql) createUser(user *User) error {
-	sql := fmt.Sprintf("CREATE USER %s IDENTIFIED BY '%s'",
-		my.fullUsername(user.Username), user.DecryptedPassword)
-	_, err := my.DB.Exec(sql)
+	sql := fmt.Sprintf("CREATE USER %s IDENTIFIED BY ?",
+		my.fullUsername(user.Username))
+	_, err := my.DB.Exec(sql, user.DecryptedPassword)
 	return err
 }
 
@@ -104,9 +107,8 @@ func (my *Mysql) filterGrants(orig []Grant, conn *Connection) []*Grant {
 }
 
 func (my *Mysql) revokeEverything(username string) error {
-	quoted_uname := mysqlQuoteIdent(username)
-	sql := fmt.Sprintf("REVOKE ALL PRIVILEGES, GRANT OPTION FROM %s@`%s`",
-		quoted_uname, MYSQL_USER_HOST)
+	sql := fmt.Sprintf("REVOKE ALL PRIVILEGES, GRANT OPTION FROM %s",
+		my.fullUsername(username))
 	_, err := my.DB.Exec(sql)
 	return err
 }
