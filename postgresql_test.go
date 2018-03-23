@@ -33,7 +33,7 @@ func postgresqlTestGrantResponse(statements []string) *GrantsResponse {
 				Id: 1,
 				Database: &Database{
 					Id:                1,
-					Name:              "foo",
+					Name:              "pg_test",
 					Type:              "postgresql",
 					Host:              "localhost",
 					Port:              5432,

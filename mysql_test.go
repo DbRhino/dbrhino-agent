@@ -33,7 +33,7 @@ func mysqlTestGrantResponse(statements []string) *GrantsResponse {
 				Id: 1,
 				Database: &Database{
 					Id:                1,
-					Name:              "foo",
+					Name:              "mysql_test",
 					Type:              "mysql",
 					Host:              "localhost",
 					Port:              3306,

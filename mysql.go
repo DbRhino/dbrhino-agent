@@ -69,10 +69,15 @@ func mysqlQuoteIdent(ident string) string {
 	return "`" + strings.Replace(ident, "`", "``", -1) + "`"
 }
 
+func (my *Mysql) fullUsername(username string) string {
+	quoted_uname := mysqlQuoteIdent(username)
+	quoted_host := mysqlQuoteIdent(MYSQL_USER_HOST)
+	return quoted_uname + "@" + quoted_host
+}
+
 func (my *Mysql) createUser(user *User) error {
-	quoted_uname := mysqlQuoteIdent(user.Username)
-	sql := fmt.Sprintf("CREATE USER %s@`%s` IDENTIFIED BY '%s'", quoted_uname,
-		MYSQL_USER_HOST, user.DecryptedPassword)
+	sql := fmt.Sprintf("CREATE USER %s IDENTIFIED BY '%s'",
+		my.fullUsername(user.Username), user.DecryptedPassword)
 	_, err := my.DB.Exec(sql)
 	return err
 }
@@ -84,7 +89,7 @@ func (my *Mysql) cacheGlobalContextData() error {
 func (my *Mysql) createTemplateContext(username string) *pongo2.Context {
 	return &pongo2.Context{
 		"type":     "mysql",
-		"username": username,
+		"username": my.fullUsername(username),
 	}
 }
 
