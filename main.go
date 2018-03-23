@@ -14,7 +14,7 @@ import (
 
 var logger = logging.MustGetLogger("grants")
 
-const AGENT_VERSION = "0.4.7"
+const AGENT_VERSION = "0.5.0"
 
 var fileFormat = logging.MustStringFormatter(
 	`%{time:15:04:05.000} > %{level:.4s} %{message} <in %{shortfunc}>`,
