@@ -19,6 +19,7 @@ type PgCatalog struct {
 type PgFlavor interface {
 	createUserSql(*User) string
 	updatePasswordSql(*User) string
+	getDbtype() string
 }
 
 type PostgreSQL struct {
@@ -125,6 +126,7 @@ func (pg *PostgreSQL) cacheGlobalContextData() error {
 
 func (pg *PostgreSQL) createTemplateContext(username string) *pongo2.Context {
 	return &pongo2.Context{
+		"type":     pg.Flavor.getDbtype(),
 		"database": pglib.QuoteIdentifier(pg.CachedCatalog.Database),
 		"schemas":  MapString(pg.CachedCatalog.Schemas, pglib.QuoteIdentifier),
 		"username": pglib.QuoteIdentifier(username),
@@ -223,6 +225,10 @@ func (pg *PgNative) updatePasswordSql(user *User) string {
 		PgQuoteLiteral(user.DecryptedPassword))
 }
 
+func (pg *PgNative) getDbtype() string {
+	return "postgresql"
+}
+
 type Redshift struct {
 }
 
@@ -238,4 +244,8 @@ func (rd *Redshift) updatePasswordSql(user *User) string {
 	return fmt.Sprintf("ALTER USER %s PASSWORD %s", quoted_uname,
 		// See notes above about password being injected directly here.
 		PgQuoteLiteral(user.DecryptedPassword))
+}
+
+func (pg *Redshift) getDbtype() string {
+	return "redshift"
 }
