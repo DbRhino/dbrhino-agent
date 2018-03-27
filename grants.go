@@ -46,6 +46,7 @@ func updateUser(app *Application, grantsResponse *GrantsResponse,
 	}
 	regItem := (*connRegistry)[conn.Id]
 	if regItem.Error != nil {
+		logger.Errorf("Connection issue %s", regItem.Error)
 		return newUserResult(user, RESULT_CONNECTION_ISSUE)
 	}
 	var userPw string
@@ -118,6 +119,7 @@ func applyGrantStatements(impl *DatabaseImpl, grant *Grant) *GrantResult {
 func applyGrant(connRegistry *ConnRegistry, grant *Grant) *GrantResult {
 	regItem := (*connRegistry)[grant.ConnectionId]
 	if regItem.Error != nil {
+		logger.Errorf("Connection issue %s", regItem.Error)
 		return newGrantResult(grant, RESULT_CONNECTION_ISSUE)
 	}
 	impl := &regItem.Impl
