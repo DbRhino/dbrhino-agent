@@ -20,6 +20,7 @@ go get github.com/dbrhino/dbrhino-agent
 ## Releasing
 
 1. Update version in `main.go`
+1. Commit and push
 1. Run `./release`
 1. In `dbrhino-agent-debian` repository:
     1. Update the VERSION file
