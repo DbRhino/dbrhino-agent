@@ -29,7 +29,7 @@ if len(dirty) > 0:
 
 
 print("Determining release version")
-version = call("./run", "--version").split()[-1]
+version = call("bin/run", "--version").split()[-1]
 tag = "v" + version
 
 

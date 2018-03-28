@@ -1,0 +1,25 @@
+#!/bin/bash
+set -eu -o pipefail
+
+version=$(build/dbrhino-agent_0.5.1_linux_amd64/dbrhino-agent --version | awk '{print $3}')
+
+# Uses GitHub release:
+# https://github.com/tfausak/github-release/releases/tag/1.1.3
+
+upload() {
+    local file="$1"
+    github-release upload \
+      --token $DBRHINO_GITHUB_TOKEN \
+      --owner dbrhino \
+      --repo dbrhino-agent \
+      --tag v$version \
+      --file "$file" \
+      --name "$file"
+}
+
+(
+    cd build
+    for f in *.zip; do
+        upload "$f"
+    done
+)
