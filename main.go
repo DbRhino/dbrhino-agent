@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
+	"github.com/sevlyar/go-daemon"
 	"github.com/urfave/cli"
 )
 
@@ -82,23 +83,41 @@ func (app *Application) runGrantFetchAndApply() error {
 	return err
 }
 
+func initializationError(err error) {
+	sleepDuration := time.Duration(5) * time.Second
+	logger.Errorf("Initialization error: %s", err)
+	time.Sleep(sleepDuration)
+}
+
 func applicationInitialization() *Application {
 	configureLogging()
-	conf, err := readAndHandleConfig()
-	if err != nil {
-		logger.Fatal(err)
+	var conf *Config
+	var err error
+	var key *rsa.PrivateKey
+	for {
+		conf, err = readAndHandleConfig()
+		if err == nil {
+			break
+		}
+		initializationError(err)
 	}
-	key, err := readOrGeneratePrivateKey(conf)
-	if err != nil {
-		logger.Fatal(err)
+	for {
+		key, err = readOrGeneratePrivateKey(conf)
+		if err == nil {
+			break
+		}
+		initializationError(err)
 	}
 	app := &Application{
 		conf: conf,
 		key:  key,
 	}
-	_, err = sendPubkey(app)
-	if err != nil {
-		logger.Fatal(err)
+	for {
+		_, err = sendPubkey(app)
+		if err == nil {
+			break
+		}
+		initializationError(err)
 	}
 	return app
 }
@@ -125,6 +144,24 @@ func runOnce(c *cli.Context) error {
 	return err
 }
 
+func runDaemon(c *cli.Context) error {
+	cntxt := &daemon.Context{
+		PidFileName: "pid",
+		LogFileName: "log",
+		PidFilePerm: 0644,
+		LogFilePerm: 0640,
+	}
+	d, err := cntxt.Reborn()
+	if err != nil {
+		logger.Fatal("Unable to run: ", err)
+	}
+	if d != nil {
+		return nil
+	}
+	defer cntxt.Release()
+	return runServer(c)
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "dbrhino-agent"
@@ -140,6 +177,10 @@ func main() {
 		cli.Command{
 			Name:   "once",
 			Action: runOnce,
+		},
+		cli.Command{
+			Name:   "daemon",
+			Action: runDaemon,
 		},
 	}
 	app.Run(os.Args)
