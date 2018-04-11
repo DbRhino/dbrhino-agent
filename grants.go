@@ -24,8 +24,6 @@ type DatabaseImpl interface {
 	revokeEverything(string) error
 }
 
-var PASSWORD_REGEX = regexp.MustCompile(`(?i)^[a-z0-9 ]+$`)
-
 func splitSqlBlock(sqlBlock string) []string {
 	splitted := strings.Split(sqlBlock, ";")
 	var results []string
@@ -88,6 +86,12 @@ func updateUser(app *Application, grantsResponse *GrantsResponse,
 	return newUserResult(user, RESULT_APPLIED)
 }
 
+var GRANT_REGEX = regexp.MustCompile(`(?i)^\s*grant\s+`)
+
+func isGrantSql(sql string) bool {
+	return GRANT_REGEX.MatchString(sql)
+}
+
 func applyGrantStatements(impl *DatabaseImpl, grant *Grant) *GrantResult {
 	// SetAutoescape must be called in order for the templating engine to
 	// just treat this as a text template. This function call is global,
@@ -108,6 +112,10 @@ func applyGrantStatements(impl *DatabaseImpl, grant *Grant) *GrantResult {
 		sqls := splitSqlBlock(rendered)
 		for _, sql := range sqls {
 			logger.Debugf("(%s) SQL: %s", (*impl).getName(), sql)
+			if !isGrantSql(sql) {
+				err = errors.New("Non-grant statement found")
+				return unknownErrorGrantResult(grant, err)
+			}
 			if _, err := (*impl).getDB().Exec(sql); err != nil {
 				return unknownErrorGrantResult(grant, err)
 			}
